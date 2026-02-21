@@ -49,6 +49,8 @@ Thumbs.db
 /clients/*.yaml
 !/clients/example.yaml
 !/clients/scanme.yaml
+!/clients/vulnweb.yaml
+!/clients/testfire.yaml
 /tmp/
 /output/
 /screenshots/
