@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/SMBullet/Survex/internal/models"
@@ -34,8 +36,9 @@ type httpxResult struct {
 // RunHTTPx probes a list of hosts for live HTTP/S services.
 // httpx automatically tries both HTTP and HTTPS.
 func RunHTTPx(hosts []string) ([]models.HTTPService, error) {
-	if _, err := exec.LookPath("httpx"); err != nil {
-		return nil, fmt.Errorf("httpx not found in PATH: install with: go install github.com/projectdiscovery/httpx/cmd/httpx@latest")
+	httpxPath, err := findPDHttpx()
+	if err != nil {
+		return nil, err
 	}
 	if len(hosts) == 0 {
 		return nil, nil
@@ -52,7 +55,7 @@ func RunHTTPx(hosts []string) ([]models.HTTPService, error) {
 	// -fr: follow redirects (short form; -follow-redirects is invalid in modern httpx)
 	// -threads 50: parallel probing
 	cmd := exec.Command(
-		"httpx",
+		httpxPath,
 		"-json",
 		"-silent",
 		"-title",
@@ -117,4 +120,42 @@ func RunHTTPx(hosts []string) ([]models.HTTPService, error) {
 	}
 
 	return results, nil
+}
+
+// findPDHttpx locates ProjectDiscovery's httpx binary.
+//
+// On Kali Linux (and other Debian-based distros), apt installs a Python-based
+// "httpx" CLI at /usr/bin/httpx that uses entirely different flags. We prefer
+// the Go binary from ~/go/bin or $GOPATH/bin and verify it's PD's tool by
+// checking the version output.
+func findPDHttpx() (string, error) {
+	// Candidate paths in preference order: Go bin dirs before system paths.
+	candidates := []string{}
+
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append(candidates, filepath.Join(home, "go", "bin", "httpx"))
+	}
+	if gopath := os.Getenv("GOPATH"); gopath != "" {
+		candidates = append(candidates, filepath.Join(gopath, "bin", "httpx"))
+	}
+	// Fall back to whatever is in PATH.
+	if p, err := exec.LookPath("httpx"); err == nil {
+		candidates = append(candidates, p)
+	}
+
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err != nil {
+			continue // file doesn't exist at this path
+		}
+		out, err := exec.Command(path, "-version").CombinedOutput()
+		if err == nil && strings.Contains(strings.ToLower(string(out)), "projectdiscovery") {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf(
+		"ProjectDiscovery httpx not found — install with:\n" +
+			"  go install github.com/projectdiscovery/httpx/cmd/httpx@latest\n" +
+			"then ensure ~/go/bin is in your PATH before /usr/bin",
+	)
 }

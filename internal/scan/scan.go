@@ -130,15 +130,16 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 		sem := make(chan struct{}, 10)
 
 		for _, sub := range result.Subdomains {
-			if !tools.HasPort443(sub.Name) {
-				continue
-			}
 			wg.Add(1)
 			go func(host string) {
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
+				// AnalyzeTLS dials host:443 itself; no need to pre-check with
+				// HasPort443 (which would block the loop sequentially and double
+				// the per-host timeout cost). Errors are silently dropped — if
+				// the host has no 443 or an unresolvable cert, we just skip it.
 				info, err := tools.AnalyzeTLS(host)
 				if err != nil {
 					return
