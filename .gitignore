@@ -1,0 +1,68 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+/survex
+/survex.exe
+/survex-linux-amd64
+/survex-linux-arm64
+/survex-darwin-amd64
+/cmd/survex/survex
+
+# Go test artifacts
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Go module cache
+vendor/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Tool settings (local only)
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scan output and client data (never commit)
+/reports/
+/clients/*.yaml
+!/clients/example.yaml
+!/clients/scanme.yaml
+/tmp/
+/output/
+/screenshots/
+*.xml
+*.json.bak
+survex.db
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
+# Air (live reload)
+.air.toml
+tmp/

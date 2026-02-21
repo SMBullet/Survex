@@ -1,0 +1,21 @@
+# Test config — scanme.nmap.org is explicitly authorized for security testing.
+# https://nmap.org/book/legal-issues.html
+
+client: scanme
+target: scanme.nmap.org
+
+scan:
+  subdomains: true
+  dns: true
+  ports: true
+  http: true
+  nuclei: true      # requires: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+  screenshot: false
+
+output:
+  dir: reports/scanme
+  format: json
+  keep_history: true
+
+alerts:
+  fail_on: ""   # empty = never exit 1, just report

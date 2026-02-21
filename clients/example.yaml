@@ -1,0 +1,20 @@
+# Example client config file.
+# Copy this file, rename it for your client, and fill in the details.
+
+client: example
+target: example.com
+
+scan:
+  subdomains: true
+  dns: true
+  ports: true
+  http: true
+  screenshot: false   # requires chromium installed
+
+output:
+  dir: reports/example
+  format: json        # json | markdown | html
+  keep_history: true
+
+alerts:
+  fail_on: high       # exit 1 if new findings at this severity or above
