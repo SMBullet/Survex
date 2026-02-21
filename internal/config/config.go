@@ -181,9 +181,6 @@ func (c *Config) ResolveProfile() {
 
 // EffectiveRate returns the configured rate or the default (150).
 func (c *Config) EffectiveRate() int {
-	if c.Nuclei.Severity == "" {
-		return 150
-	}
 	if c.Scan.Rate <= 0 {
 		return 150
 	}

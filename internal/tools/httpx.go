@@ -5,9 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/SMBullet/Survex/internal/models"
@@ -24,8 +22,8 @@ type httpxResult struct {
 	WebServer  string   `json:"webserver"`
 	Tech       []string `json:"tech"`
 	TLS        *struct {
-		Host    string `json:"host"`
-		Issuer  struct {
+		Host   string `json:"host"`
+		Issuer struct {
 			CommonName string `json:"common_name"`
 		} `json:"issuer"`
 		NotAfter   string `json:"not_after"`
@@ -123,39 +121,8 @@ func RunHTTPx(hosts []string) ([]models.HTTPService, error) {
 }
 
 // findPDHttpx locates ProjectDiscovery's httpx binary.
-//
-// On Kali Linux (and other Debian-based distros), apt installs a Python-based
-// "httpx" CLI at /usr/bin/httpx that uses entirely different flags. We prefer
-// the Go binary from ~/go/bin or $GOPATH/bin and verify it's PD's tool by
-// checking the version output.
+// Delegates to the centralized FindBinary which checks ~/go/bin and $GOPATH/bin
+// before falling back to PATH, with PD version detection via CheckStatus.
 func findPDHttpx() (string, error) {
-	// Candidate paths in preference order: Go bin dirs before system paths.
-	candidates := []string{}
-
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, "go", "bin", "httpx"))
-	}
-	if gopath := os.Getenv("GOPATH"); gopath != "" {
-		candidates = append(candidates, filepath.Join(gopath, "bin", "httpx"))
-	}
-	// Fall back to whatever is in PATH.
-	if p, err := exec.LookPath("httpx"); err == nil {
-		candidates = append(candidates, p)
-	}
-
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err != nil {
-			continue // file doesn't exist at this path
-		}
-		out, err := exec.Command(path, "-version").CombinedOutput()
-		if err == nil && strings.Contains(strings.ToLower(string(out)), "projectdiscovery") {
-			return path, nil
-		}
-	}
-
-	return "", fmt.Errorf(
-		"ProjectDiscovery httpx not found — install with:\n" +
-			"  go install github.com/projectdiscovery/httpx/cmd/httpx@latest\n" +
-			"then ensure ~/go/bin is in your PATH before /usr/bin",
-	)
+	return FindBinary("httpx", "go install github.com/projectdiscovery/httpx/cmd/httpx@latest")
 }

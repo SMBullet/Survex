@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
 	"text/tabwriter"
 
@@ -356,8 +358,16 @@ func runScan(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result, err := scan.Run(cfg)
+	// Create a context that cancels on SIGINT / SIGTERM.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	result, err := scan.Run(ctx, cfg)
 	if err != nil {
+		if ctx.Err() != nil {
+			fmt.Fprintf(os.Stderr, "\n[survex] scan cancelled by user\n")
+			os.Exit(130)
+		}
 		return err
 	}
 

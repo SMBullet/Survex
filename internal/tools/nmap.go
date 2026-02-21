@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/SMBullet/Survex/internal/models"
@@ -83,7 +82,13 @@ func RunNmap(hosts []string, portSpec string) ([]models.Service, error) {
 	}
 	tmp.Close()
 
-	xmlOut := filepath.Join(os.TempDir(), "survex-nmap-out.xml")
+	// Use a unique temp file for XML output to avoid collisions between concurrent scans.
+	xmlTmp, err := os.CreateTemp("", "survex-nmap-out-*.xml")
+	if err != nil {
+		return nil, fmt.Errorf("creating nmap output file: %w", err)
+	}
+	xmlOut := xmlTmp.Name()
+	xmlTmp.Close()
 	defer os.Remove(xmlOut)
 
 	args := buildNmapArgs(portSpec, xmlOut, tmp.Name())
@@ -114,9 +119,9 @@ func RunNmap(hosts []string, portSpec string) ([]models.Service, error) {
 // buildNmapArgs constructs the nmap argument list for the given port spec.
 func buildNmapArgs(portSpec, xmlOut, hostFile string) []string {
 	args := []string{
-		"-sV",      // service/version detection
-		"-T4",      // aggressive timing (override with stealth profile)
-		"--open",   // only show open ports
+		"-sV",    // service/version detection
+		"-T4",    // aggressive timing (override with stealth profile)
+		"--open", // only show open ports
 		"-oX", xmlOut,
 		"-iL", hostFile,
 	}

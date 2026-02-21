@@ -2,6 +2,7 @@ package scan
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -23,7 +24,8 @@ import (
 
 // Run executes the ASM pipeline for the given config.
 // Which steps run is determined entirely by cfg.Modules (after profile resolution).
-func Run(cfg *config.Config) (*models.ScanResult, error) {
+// The context is used for graceful cancellation (e.g. Ctrl+C).
+func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 	// Resolve profile → module list (no-op if modules already set)
 	cfg.ResolveProfile()
 
@@ -60,6 +62,11 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 		hostSources[t] = append(hostSources[t], "config")
 	}
 	log.Printf("[survex] %d target(s) after expansion", len(rawTargets))
+
+	// Check for cancellation between major steps.
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
 
 	// ── Step 2: Subdomain Enumeration (skip if --no-subs or passive) ──────────
 	if !cfg.Scan.NoSubs && !cfg.Scan.Passive {
@@ -143,6 +150,10 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 	}
 	log.Printf("[survex] %d unique hosts in scope", len(result.Subdomains))
 
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 3: DNS Resolution ─────────────────────────────────────────────────
 	if cfg.HasModule("dns") {
 		log.Printf("[survex] resolving DNS records")
@@ -154,6 +165,10 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 			result.DNS = append(result.DNS, records...)
 		}
 		log.Printf("[survex]   %d DNS records collected", len(result.DNS))
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
 	}
 
 	// ── Step 4: Port Scanning ──────────────────────────────────────────────────
@@ -172,6 +187,10 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 		}
 	}
 
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 5: HTTP Probing ───────────────────────────────────────────────────
 	if cfg.HasModule("httpx") && !cfg.Scan.Passive {
 		log.Printf("[survex] probing HTTP/S services (%d hosts)", len(result.Subdomains))
@@ -188,113 +207,158 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 		}
 	}
 
-	// ── Step 6: TLS Deep Analysis ──────────────────────────────────────────────
-	if cfg.HasModule("tls") && !cfg.Scan.Passive {
-		log.Printf("[survex] analyzing TLS certificates")
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		sem := make(chan struct{}, 10)
+	// ── Steps 6–11: Parallel Analysis ────────────────────────────────────────
+	// These steps are independent of each other — they read from result.Subdomains
+	// and/or result.HTTP but write to separate result fields. Running them in
+	// parallel cuts wall time to the duration of the slowest module.
+	{
+		var parallelWg sync.WaitGroup
 
-		for _, sub := range result.Subdomains {
-			wg.Add(1)
-			go func(host string) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
+		// Step 6: TLS Deep Analysis (needs Subdomains)
+		if cfg.HasModule("tls") && !cfg.Scan.Passive {
+			parallelWg.Add(1)
+			go func() {
+				defer parallelWg.Done()
+				log.Printf("[survex] analyzing TLS certificates")
+				var mu sync.Mutex
+				var wg sync.WaitGroup
+				sem := make(chan struct{}, 10)
 
-				info, err := tools.AnalyzeTLS(host)
-				if err != nil {
-					return
+				for _, sub := range result.Subdomains {
+					wg.Add(1)
+					go func(host string) {
+						defer wg.Done()
+						sem <- struct{}{}
+						defer func() { <-sem }()
+
+						info, err := tools.AnalyzeTLS(host)
+						if err != nil {
+							return
+						}
+						mu.Lock()
+						result.TLS = append(result.TLS, *info)
+						mu.Unlock()
+					}(sub.Name)
 				}
-				mu.Lock()
-				result.TLS = append(result.TLS, *info)
-				mu.Unlock()
-			}(sub.Name)
+				wg.Wait()
+				log.Printf("[survex]   %d TLS certs analyzed", len(result.TLS))
+			}()
 		}
-		wg.Wait()
-		log.Printf("[survex]   %d TLS certs analyzed", len(result.TLS))
-	}
 
-	// ── Step 7: WAF Detection ──────────────────────────────────────────────────
-	if cfg.HasModule("waf") && !cfg.Scan.Passive {
-		log.Printf("[survex] detecting WAFs")
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		sem := make(chan struct{}, 10)
+		// Step 7: WAF Detection (needs Subdomains)
+		if cfg.HasModule("waf") && !cfg.Scan.Passive {
+			parallelWg.Add(1)
+			go func() {
+				defer parallelWg.Done()
+				log.Printf("[survex] detecting WAFs")
+				var mu sync.Mutex
+				var wg sync.WaitGroup
+				sem := make(chan struct{}, 10)
 
-		for _, sub := range result.Subdomains {
-			wg.Add(1)
-			go func(host string) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
+				for _, sub := range result.Subdomains {
+					wg.Add(1)
+					go func(host string) {
+						defer wg.Done()
+						sem <- struct{}{}
+						defer func() { <-sem }()
 
-				waf, err := tools.DetectWAF(host)
-				if err != nil {
-					return
+						waf, err := tools.DetectWAF(host)
+						if err != nil {
+							return
+						}
+						mu.Lock()
+						result.WAF = append(result.WAF, *waf)
+						mu.Unlock()
+					}(sub.Name)
 				}
-				mu.Lock()
-				result.WAF = append(result.WAF, *waf)
-				mu.Unlock()
-			}(sub.Name)
+				wg.Wait()
+
+				detected := 0
+				for _, w := range result.WAF {
+					if w.Detected {
+						detected++
+					}
+				}
+				log.Printf("[survex]   %d WAFs detected across %d hosts", detected, len(result.WAF))
+			}()
 		}
-		wg.Wait()
 
-		detected := 0
-		for _, w := range result.WAF {
-			if w.Detected {
-				detected++
-			}
+		// Step 8: Security Headers Analysis (needs HTTP)
+		if cfg.HasModule("headers") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
+			parallelWg.Add(1)
+			go func() {
+				defer parallelWg.Done()
+				log.Printf("[survex] analyzing security headers (%d URLs)", len(result.HTTP))
+				result.SecurityHeaders = tools.AnalyzeHeaders(result.HTTP, timeout)
+				log.Printf("[survex]   %d header analyses complete", len(result.SecurityHeaders))
+			}()
 		}
-		log.Printf("[survex]   %d WAFs detected across %d hosts", detected, len(result.WAF))
-	}
 
-	// ── Step 8: Security Headers Analysis ─────────────────────────────────────
-	if cfg.HasModule("headers") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
-		log.Printf("[survex] analyzing security headers (%d URLs)", len(result.HTTP))
-		result.SecurityHeaders = tools.AnalyzeHeaders(result.HTTP, timeout)
-		log.Printf("[survex]   %d header analyses complete", len(result.SecurityHeaders))
-	}
-
-	// ── Step 9: CORS Testing ───────────────────────────────────────────────────
-	if cfg.HasModule("cors") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
-		log.Printf("[survex] testing CORS configurations (%d URLs)", len(result.HTTP))
-		result.CORS = tools.TestCORS(result.HTTP, timeout)
-		vulnCount := 0
-		for _, c := range result.CORS {
-			if c.Vulnerable {
-				vulnCount++
-			}
+		// Step 9: CORS Testing (needs HTTP)
+		if cfg.HasModule("cors") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
+			parallelWg.Add(1)
+			go func() {
+				defer parallelWg.Done()
+				log.Printf("[survex] testing CORS configurations (%d URLs)", len(result.HTTP))
+				result.CORS = tools.TestCORS(result.HTTP, timeout)
+				vulnCount := 0
+				for _, c := range result.CORS {
+					if c.Vulnerable {
+						vulnCount++
+					}
+				}
+				log.Printf("[survex]   %d CORS vulnerabilities found", vulnCount)
+			}()
 		}
-		log.Printf("[survex]   %d CORS vulnerabilities found", vulnCount)
+
+		// Step 10: Cookie Security Analysis (needs HTTP)
+		if cfg.HasModule("cookies") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
+			parallelWg.Add(1)
+			go func() {
+				defer parallelWg.Done()
+				log.Printf("[survex] analyzing cookie security (%d URLs)", len(result.HTTP))
+				result.Cookies = tools.AnalyzeCookies(result.HTTP, timeout)
+				log.Printf("[survex]   %d cookie results collected", len(result.Cookies))
+			}()
+		}
+
+		// Step 11: S3 / Cloud Storage Detection (needs Subdomains + HTTP)
+		if cfg.HasModule("s3") && !cfg.Scan.Passive {
+			parallelWg.Add(1)
+			go func() {
+				defer parallelWg.Done()
+				log.Printf("[survex] scanning for cloud storage exposure")
+				result.S3Buckets = tools.DetectS3Buckets(result.Subdomains, result.HTTP, timeout)
+				log.Printf("[survex]   %d cloud storage buckets found", len(result.S3Buckets))
+			}()
+		}
+
+		parallelWg.Wait()
 	}
 
-	// ── Step 10: Cookie Security Analysis ─────────────────────────────────────
-	if cfg.HasModule("cookies") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
-		log.Printf("[survex] analyzing cookie security (%d URLs)", len(result.HTTP))
-		result.Cookies = tools.AnalyzeCookies(result.HTTP, timeout)
-		log.Printf("[survex]   %d cookie results collected", len(result.Cookies))
-	}
-
-	// ── Step 11: S3 / Cloud Storage Detection ─────────────────────────────────
-	if cfg.HasModule("s3") && !cfg.Scan.Passive {
-		log.Printf("[survex] scanning for cloud storage exposure")
-		result.S3Buckets = tools.DetectS3Buckets(result.Subdomains, result.HTTP, timeout)
-		log.Printf("[survex]   %d cloud storage buckets found", len(result.S3Buckets))
+	if ctx.Err() != nil {
+		return result, ctx.Err()
 	}
 
 	// ── Step 12: Historical URLs (GAU) ────────────────────────────────────────
 	if cfg.HasModule("gau") {
 		log.Printf("[survex] collecting historical URLs")
 		for _, domain := range domains {
-			urls, err := tools.RunGAU(domain)
+			urls, err := tools.RunGAU(ctx, domain, 0) // 0 = use DefaultGAUMaxResults (5,000)
 			if err != nil {
+				if ctx.Err() != nil {
+					return result, ctx.Err()
+				}
 				log.Printf("[survex]   gau [%s]: %v", domain, err)
 				continue
 			}
 			result.HistoricalURLs = append(result.HistoricalURLs, urls...)
 			log.Printf("[survex]   gau [%s]: %d historical URLs", domain, len(urls))
 		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
 	}
 
 	// ── Step 13: Katana Crawler ────────────────────────────────────────────────
@@ -313,6 +377,10 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 		}
 	}
 
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 14: Vulnerability Scanning (nuclei) ───────────────────────────────
 	if cfg.HasModule("nuclei") && !cfg.Scan.Passive {
 		// Update templates before scan if configured
@@ -325,7 +393,10 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 
 		log.Printf("[survex] running nuclei vulnerability scan")
 
-		// Feed nuclei: live HTTP URLs + bare hostnames + historical URLs
+		// Feed nuclei: live HTTP URLs + bare hostnames ONLY.
+		// Do NOT include historical URLs (GAU/katana) — they can be 200K+ for
+		// large domains and cause nuclei to run for hours/days. The live HTTP
+		// services and hostnames provide sufficient coverage.
 		targetSet := make(map[string]struct{})
 		for _, h := range result.HTTP {
 			targetSet[h.URL] = struct{}{}
@@ -333,17 +404,18 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 		for _, sub := range result.Subdomains {
 			targetSet[sub.Name] = struct{}{}
 		}
-		// Add historical URLs from GAU/katana for deeper coverage
-		for _, hu := range result.HistoricalURLs {
-			targetSet[hu.URL] = struct{}{}
-		}
 		var nucleiTargets []string
 		for t := range targetSet {
 			nucleiTargets = append(nucleiTargets, t)
 		}
 
-		vulns, err := tools.RunNuclei(nucleiTargets, cfg.Nuclei)
+		log.Printf("[survex]   nuclei targets: %d (live HTTP + hostnames)", len(nucleiTargets))
+
+		vulns, err := tools.RunNuclei(ctx, nucleiTargets, cfg.Nuclei)
 		if err != nil {
+			if ctx.Err() != nil {
+				return result, ctx.Err()
+			}
 			log.Printf("[survex]   nuclei: %v", err)
 		} else {
 			result.Vulnerabilities = vulns
@@ -401,6 +473,15 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 	now := time.Now()
 	result.Scan.FinishedAt = &now
 	result.Scan.Status = "done"
+
+	// Cap historical URLs before persistence to avoid bloating the DB/JSON.
+	// Keep a sample of 1,000 for reference; the total count is in the summary.
+	const maxStoredHistURLs = 1000
+	totalHistURLs := len(result.HistoricalURLs)
+	if totalHistURLs > maxStoredHistURLs {
+		result.HistoricalURLs = result.HistoricalURLs[:maxStoredHistURLs]
+		log.Printf("[survex] historical URLs trimmed: %d → %d for storage (full count in summary)", totalHistURLs, maxStoredHistURLs)
+	}
 
 	if err := store.Save(cfg.Client, result); err != nil {
 		log.Printf("[survex] warning: could not save scan: %v", err)

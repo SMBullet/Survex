@@ -3,11 +3,11 @@ package tools
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/SMBullet/Survex/internal/config"
@@ -88,7 +88,7 @@ var asmTemplates = []string{
 // NucleiOptions from the config allow per-client customization of severity, tags, and templates.
 //
 // Requires nuclei v3+: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-func RunNuclei(targets []string, opts config.NucleiOptions) ([]models.Vulnerability, error) {
+func RunNuclei(ctx context.Context, targets []string, opts config.NucleiOptions) ([]models.Vulnerability, error) {
 	nucleiPath, err := findNuclei()
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func RunNuclei(targets []string, opts config.NucleiOptions) ([]models.Vulnerabil
 	defer os.Remove(tmpOutName)
 
 	args := buildNucleiArgs(tmpIn.Name(), tmpOutName, opts)
-	cmd := exec.Command(nucleiPath, args...)
+	cmd := exec.CommandContext(ctx, nucleiPath, args...)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -246,31 +246,9 @@ func UpdateTemplates() error {
 	return nil
 }
 
-// findNuclei locates the ProjectDiscovery nuclei binary, checking ~/go/bin
-// before falling back to PATH (mirrors the same logic as findPDHttpx).
+// findNuclei locates the ProjectDiscovery nuclei binary.
+// Delegates to the centralized FindBinary which checks ~/go/bin and $GOPATH/bin
+// before falling back to PATH.
 func findNuclei() (string, error) {
-	var candidates []string
-
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, "go", "bin", "nuclei"))
-	}
-	if gopath := os.Getenv("GOPATH"); gopath != "" {
-		candidates = append(candidates, filepath.Join(gopath, "bin", "nuclei"))
-	}
-	if p, err := exec.LookPath("nuclei"); err == nil {
-		candidates = append(candidates, p)
-	}
-
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err != nil {
-			continue
-		}
-		return p, nil
-	}
-
-	return "", fmt.Errorf(
-		"nuclei not found — install with:\n" +
-			"  go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest\n" +
-			"then run: source ~/.bashrc",
-	)
+	return FindBinary("nuclei", "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest")
 }
