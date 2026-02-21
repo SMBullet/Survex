@@ -47,7 +47,6 @@ var AllTools = []ToolDef{
 		Description: "Subdomain enumeration via OSINT sources",
 		GoInstall:   "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
 		VersionFlag: "-version",
-		PDTool:      true,
 	},
 	{
 		Name:        "amass",
@@ -131,7 +130,6 @@ var AllTools = []ToolDef{
 		Description: "JS-aware web crawler for endpoint and parameter discovery",
 		GoInstall:   "github.com/projectdiscovery/katana/cmd/katana@latest",
 		VersionFlag: "-version",
-		PDTool:      true,
 	},
 	{
 		Name:        "screenshot",
@@ -148,7 +146,6 @@ var AllTools = []ToolDef{
 		Description: "Vulnerability scanning (CVEs, misconfigs, exposures, default creds)",
 		GoInstall:   "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
 		VersionFlag: "-version",
-		PDTool:      true,
 	},
 	{
 		Name:        "shodan",
