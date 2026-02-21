@@ -171,6 +171,38 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		return result, ctx.Err()
 	}
 
+	// ── Step 3b: Subdomain Takeover Detection ─────────────────────────────────
+	if cfg.HasModule("takeover") && !cfg.Scan.Passive {
+		if len(result.Subdomains) == 0 {
+			log.Printf("[survex] takeover: skipped (no hosts in scope)")
+		} else {
+			log.Printf("[survex] checking for subdomain takeovers (%d hosts)", len(result.Subdomains))
+			result.Takeovers = tools.DetectTakeovers(result.Subdomains, timeout)
+			vuln := 0
+			for _, t := range result.Takeovers {
+				if t.Vulnerable {
+					vuln++
+				}
+			}
+			log.Printf("[survex]   %d takeover candidates found (%d confirmed vulnerable)", len(result.Takeovers), vuln)
+		}
+	}
+
+	// ── Step 3c: Email Security (SPF / DMARC / DKIM) ──────────────────────────
+	if cfg.HasModule("email") {
+		if len(domains) == 0 {
+			log.Printf("[survex] email: skipped (no domain targets)")
+		} else {
+			log.Printf("[survex] checking email security (SPF/DMARC/DKIM) for %d domain(s)", len(domains))
+			result.EmailSecurity = tools.RunEmailSecurity(domains)
+			log.Printf("[survex]   email security checked for %d domain(s)", len(result.EmailSecurity))
+		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 4: Port Scanning ──────────────────────────────────────────────────
 	if cfg.HasModule("nmap") && !cfg.Scan.Passive {
 		log.Printf("[survex] scanning ports (%d hosts, profile: %s)", len(result.Subdomains), cfg.EffectivePorts())
@@ -631,6 +663,8 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 		"historical_urls.json":  result.HistoricalURLs,
 		"screenshots.json":      result.Screenshots,
 		"shodan.json":           result.ShodanHosts,
+		"takeovers.json":        result.Takeovers,
+		"email_security.json":   result.EmailSecurity,
 		"vulnerabilities.json":  result.Vulnerabilities,
 		"findings.json":         result.Findings,
 		"diff.json":             result.Diff,
@@ -654,6 +688,8 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 			"historical_count": len(result.HistoricalURLs),
 			"screenshot_count": len(result.Screenshots),
 			"shodan_count":     len(result.ShodanHosts),
+			"takeover_count":   len(result.Takeovers),
+			"email_count":      len(result.EmailSecurity),
 			"vuln_count":       len(result.Vulnerabilities),
 			"finding_count":    len(result.Findings),
 			"max_severity":     risk.MaxSeverity(result.Findings),

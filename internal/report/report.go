@@ -113,6 +113,15 @@ func WriteHTML(scanDir string, result *models.ScanResult) error {
 			}
 			return n
 		},
+		"countVulnTakeovers": func(takeovers []models.TakeoverResult) int {
+			n := 0
+			for _, t := range takeovers {
+				if t.Vulnerable {
+					n++
+				}
+			}
+			return n
+		},
 	}).Parse(htmlTemplate)
 	if err != nil {
 		return err
@@ -256,6 +265,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="card"><div class="card-value">{{countVulnCORS .Result.CORS}}</div><div class="card-label">CORS Vulns</div></div>
     <div class="card"><div class="card-value">{{len .Result.S3Buckets}}</div><div class="card-label">Cloud Buckets</div></div>
     <div class="card"><div class="card-value">{{len .Result.Vulnerabilities}}</div><div class="card-label">Nuclei Vulns</div></div>
+    <div class="card"><div class="card-value">{{countVulnTakeovers .Result.Takeovers}}</div><div class="card-label">Takeovers</div></div>
     <div class="card"><div class="card-value">{{len .Findings}}</div><div class="card-label">Total Findings</div></div>
     <div class="card"><div class="card-value">{{len .Result.Screenshots}}</div><div class="card-label">Screenshots</div></div>
   </div>
@@ -348,6 +358,27 @@ const htmlTemplate = `<!DOCTYPE html>
         <td class="mono">{{.Host}}</td>
         <td class="mono"><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
         <td>{{corsIssueBadge .Issue}}</td>
+        <td class="finding-detail">{{.Evidence}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- Subdomain Takeovers -->
+  {{if .Result.Takeovers}}
+  <div class="section">
+    <h2>Subdomain Takeovers ({{len .Result.Takeovers}} candidates, {{countVulnTakeovers .Result.Takeovers}} confirmed)</h2>
+    <table>
+      <thead><tr><th>Host</th><th>CNAME Target</th><th>Service</th><th>Status</th><th>Evidence</th></tr></thead>
+      <tbody>
+      {{range .Result.Takeovers}}
+      <tr>
+        <td class="mono">{{.Host}}</td>
+        <td class="mono">{{.CNAME}}</td>
+        <td>{{.Service}}</td>
+        <td>{{if .Vulnerable}}<span style="color:#dc2626;font-weight:700">VULNERABLE</span>{{else}}<span style="color:#fbbf24">Candidate</span>{{end}}</td>
         <td class="finding-detail">{{.Evidence}}</td>
       </tr>
       {{end}}
@@ -454,6 +485,27 @@ const htmlTemplate = `<!DOCTYPE html>
         <td>{{.ISP}}</td>
         <td>{{.Country}}</td>
         <td>{{if .Vulns}}<span style="color:#f87171;font-weight:600">{{len .Vulns}}</span>{{else}}<span style="color:#6b7280">0</span>{{end}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- Email Security -->
+  {{if .Result.EmailSecurity}}
+  <div class="section">
+    <h2>Email Security — SPF / DMARC / DKIM ({{len .Result.EmailSecurity}} domains)</h2>
+    <table>
+      <thead><tr><th>Domain</th><th>SPF</th><th>DMARC</th><th>DKIM</th><th>DKIM Selector</th></tr></thead>
+      <tbody>
+      {{range .Result.EmailSecurity}}
+      <tr>
+        <td class="mono">{{.Domain}}</td>
+        <td>{{if .SPFPresent}}<span style="color:#34d399;font-weight:600">Present</span>{{else}}<span style="color:#f87171;font-weight:600">Missing</span>{{end}}</td>
+        <td>{{if .DMARCPresent}}<span style="color:#34d399;font-weight:600">Present</span>{{else}}<span style="color:#f87171;font-weight:600">Missing</span>{{end}}</td>
+        <td>{{if .DKIMPresent}}<span style="color:#34d399;font-weight:600">Found</span>{{else}}<span style="color:#6b7280">Not found</span>{{end}}</td>
+        <td class="mono finding-detail">{{if .DKIMSelector}}{{.DKIMSelector}}{{else}}—{{end}}</td>
       </tr>
       {{end}}
       </tbody>

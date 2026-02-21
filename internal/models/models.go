@@ -149,6 +149,31 @@ type DNSRecord struct {
 	Value string `json:"value"`
 }
 
+// ── Email Security ─────────────────────────────────────────────────────────
+
+// EmailSecurityResult holds SPF / DMARC / DKIM analysis for a root domain.
+type EmailSecurityResult struct {
+	Domain       string `json:"domain"`
+	SPFPresent   bool   `json:"spf_present"`
+	SPF          string `json:"spf,omitempty"`
+	DMARCPresent bool   `json:"dmarc_present"`
+	DMARC        string `json:"dmarc,omitempty"`
+	DKIMPresent  bool   `json:"dkim_present"`
+	DKIMSelector string `json:"dkim_selector,omitempty"`
+	DKIM         string `json:"dkim,omitempty"`
+}
+
+// ── Subdomain Takeover ─────────────────────────────────────────────────────
+
+// TakeoverResult holds the outcome of a subdomain takeover check for a single host.
+type TakeoverResult struct {
+	Host       string `json:"host"`
+	CNAME      string `json:"cname"`             // the resolved CNAME target
+	Service    string `json:"service"`           // e.g. "GitHub Pages", "AWS S3"
+	Vulnerable bool   `json:"vulnerable"`        // true only when confirmed unclaimed
+	Evidence   string `json:"evidence,omitempty"` // NXDOMAIN / HTTP fingerprint detail
+}
+
 // ── Vulnerabilities / Findings ────────────────────────────────────────────
 
 // Vulnerability holds a finding from the nuclei scanner.
@@ -200,6 +225,8 @@ type ScanResult struct {
 	HistoricalURLs  []HistoricalURL  `json:"historical_urls,omitempty"`
 	Screenshots     []Screenshot     `json:"screenshots,omitempty"`
 	ShodanHosts     []ShodanHost     `json:"shodan_hosts,omitempty"`
+	EmailSecurity   []EmailSecurityResult `json:"email_security,omitempty"`
+	Takeovers       []TakeoverResult      `json:"takeovers,omitempty"`
 	Vulnerabilities []Vulnerability  `json:"vulnerabilities,omitempty"`
 	Findings        []Finding        `json:"findings"`
 	Diff            *Diff            `json:"diff,omitempty"`

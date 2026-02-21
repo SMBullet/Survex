@@ -152,6 +152,16 @@ var AllTools = []ToolDef{
 		Kind:        KindAPI,
 		Description: "Passive host enrichment via Shodan API (requires API key)",
 	},
+	{
+		Name:        "takeover",
+		Kind:        KindBuiltIn,
+		Description: "Subdomain takeover detection (CNAME + HTTP fingerprint, 25 services)",
+	},
+	{
+		Name:        "email",
+		Kind:        KindBuiltIn,
+		Description: "Email security checks (SPF, DMARC, DKIM)",
+	},
 }
 
 // ─── Status Checking ───────────────────────────────────────────────────────────

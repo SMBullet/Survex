@@ -324,6 +324,63 @@ func Score(result *models.ScanResult) []models.Finding {
 		}
 	}
 
+	// ── Subdomain takeover findings ───────────────────────────────────────────
+	for _, t := range result.Takeovers {
+		if t.Vulnerable {
+			findings = append(findings, models.Finding{
+				Asset:     t.Host,
+				Severity:  "critical",
+				Title:     fmt.Sprintf("Subdomain takeover confirmed: %s", t.Service),
+				Detail:    fmt.Sprintf("CNAME → %s | %s", t.CNAME, t.Evidence),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		} else if t.CNAME != "" {
+			findings = append(findings, models.Finding{
+				Asset:     t.Host,
+				Severity:  "info",
+				Title:     fmt.Sprintf("Subdomain CNAME to %s (takeover candidate)", t.Service),
+				Detail:    fmt.Sprintf("CNAME → %s | %s", t.CNAME, t.Evidence),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		}
+	}
+
+	// ── Email security findings ────────────────────────────────────────────────
+	for _, e := range result.EmailSecurity {
+		if !e.SPFPresent {
+			findings = append(findings, models.Finding{
+				Asset:     e.Domain,
+				Severity:  "medium",
+				Title:     "Missing SPF record",
+				Detail:    fmt.Sprintf("No SPF TXT record found for %s — anyone can spoof email from this domain", e.Domain),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		}
+		if !e.DMARCPresent {
+			findings = append(findings, models.Finding{
+				Asset:     e.Domain,
+				Severity:  "medium",
+				Title:     "Missing DMARC record",
+				Detail:    fmt.Sprintf("No DMARC policy at _dmarc.%s — no enforcement against spoofed email", e.Domain),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		}
+		if !e.DKIMPresent {
+			findings = append(findings, models.Finding{
+				Asset:     e.Domain,
+				Severity:  "low",
+				Title:     "No DKIM record detected",
+				Detail:    fmt.Sprintf("No DKIM TXT record found for %s — email integrity cannot be cryptographically verified", e.Domain),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		}
+	}
+
 	// ── Nuclei vulnerability findings ─────────────────────────────────────────
 	for _, v := range result.Vulnerabilities {
 		detail := fmt.Sprintf("Template: %s | URL: %s", v.TemplateID, v.URL)

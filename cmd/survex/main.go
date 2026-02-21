@@ -12,6 +12,7 @@ import (
 	"github.com/SMBullet/Survex/internal/config"
 	"github.com/SMBullet/Survex/internal/risk"
 	"github.com/SMBullet/Survex/internal/scan"
+	"github.com/SMBullet/Survex/internal/server"
 	"github.com/SMBullet/Survex/internal/store"
 	"github.com/SMBullet/Survex/internal/tools"
 	"github.com/spf13/cobra"
@@ -90,6 +91,22 @@ var updateCmd = &cobra.Command{
 	RunE:  runUpdate,
 }
 
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "Start the Survex web dashboard",
+	Long: `Start a read-only web dashboard for browsing scan results.
+
+The dashboard lists all clients, their last scan time, and links directly
+to each HTML report. Scan output directories are served as static files so
+screenshots and JSON files are also accessible in the browser.
+
+Examples:
+  survex serve                           # listen on 127.0.0.1:8080
+  survex serve --addr 0.0.0.0:9000      # listen on all interfaces
+  survex serve --reports-dir /data/reports`,
+	RunE: runServe,
+}
+
 var installCmd = &cobra.Command{
 	Use:   "install [tool...]",
 	Short: "Install and verify all external tools required by Survex",
@@ -148,6 +165,10 @@ var (
 	// install subcommand
 	flagInstallCheck   bool
 	flagInstallFixPath bool
+
+	// serve subcommand
+	flagServeAddr       string
+	flagServeReportsDir string
 )
 
 func init() {
@@ -198,7 +219,11 @@ func init() {
 	installCmd.Flags().BoolVar(&flagInstallCheck, "check", false, "Only verify status — do not install anything")
 	installCmd.Flags().BoolVar(&flagInstallFixPath, "fix-path", false, "Add ~/go/bin to shell config files without installing tools")
 
-	rootCmd.AddCommand(scanCmd, diffCmd, reportCmd, historyCmd, modulesCmd, updateCmd, installCmd)
+	// ── serve flags ───────────────────────────────────────────────────────
+	serveCmd.Flags().StringVar(&flagServeAddr, "addr", "127.0.0.1:8080", "Listen address (host:port)")
+	serveCmd.Flags().StringVar(&flagServeReportsDir, "reports-dir", "reports", "Directory containing scan report output")
+
+	rootCmd.AddCommand(scanCmd, diffCmd, reportCmd, historyCmd, modulesCmd, updateCmd, installCmd, serveCmd)
 }
 
 // ── Config resolution ─────────────────────────────────────────────────────────
@@ -679,6 +704,16 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func runServe(cmd *cobra.Command, args []string) error {
+	if err := initStore(); err != nil {
+		return fmt.Errorf("initializing store: %w", err)
+	}
+	fmt.Printf("Survex web dashboard → http://%s\n", flagServeAddr)
+	fmt.Printf("Reports directory   : %s\n", flagServeReportsDir)
+	fmt.Printf("Press Ctrl+C to stop.\n\n")
+	return server.Serve(flagServeAddr, flagServeReportsDir)
 }
 
 func main() {

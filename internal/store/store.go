@@ -127,6 +127,36 @@ func (s *Store) ListScans(client string, limit int) ([]models.Scan, error) {
 	return scans, rows.Err()
 }
 
+// ListAllClients returns the latest scan metadata for every distinct client,
+// ordered by most recently started. Used by the web dashboard.
+func (s *Store) ListAllClients() ([]models.Scan, error) {
+	rows, err := s.db.Query(`
+		SELECT id, client, target, started_at, finished_at, status
+		FROM scans
+		WHERE (client, started_at) IN (
+			SELECT client, MAX(started_at) FROM scans GROUP BY client
+		)
+		ORDER BY started_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var scans []models.Scan
+	for rows.Next() {
+		var sc models.Scan
+		var finishedAt sql.NullTime
+		if err := rows.Scan(&sc.ID, &sc.Client, &sc.Target, &sc.StartedAt, &finishedAt, &sc.Status); err != nil {
+			return nil, err
+		}
+		if finishedAt.Valid {
+			sc.FinishedAt = &finishedAt.Time
+		}
+		scans = append(scans, sc)
+	}
+	return scans, rows.Err()
+}
+
 // ────────────────────────────────────────────────────────────────────────────────
 // Package-level convenience functions (backward compatible).
 // These exist so callers can use a default global store without changing every
@@ -167,4 +197,12 @@ func ListScans(client string, limit int) ([]models.Scan, error) {
 		return nil, fmt.Errorf("store not initialized")
 	}
 	return defaultStore.ListScans(client, limit)
+}
+
+// ListAllClients returns the latest scan per client using the default store.
+func ListAllClients() ([]models.Scan, error) {
+	if defaultStore == nil {
+		return nil, fmt.Errorf("store not initialized")
+	}
+	return defaultStore.ListAllClients()
 }
