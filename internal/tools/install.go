@@ -182,7 +182,7 @@ var AllTools = []ToolDef{
 		Binary:      "ffuf",
 		Kind:        KindGoTool,
 		Description: "Content/directory bruteforce (hidden endpoints, admin panels, backup files, API paths)",
-		GoInstall:   "github.com/ffuf/ffuf/v2/cmd/ffuf@latest",
+		GoInstall:   "github.com/ffuf/ffuf/v2@latest",
 		VersionFlag: "-V",
 	},
 	{
@@ -340,7 +340,12 @@ func RunInstall(filter []string, doInstall bool, logFn func(string)) []InstallRe
 
 		case "needs-key":
 			res.Action = "needs-key"
-			res.Message = "set --shodan-key or SHODAN_API_KEY env var"
+			switch def.Name {
+			case "github":
+				res.Message = "optional: set --github-token for higher rate limits"
+			default:
+				res.Message = "set --shodan-key or SHODAN_API_KEY env var"
+			}
 
 		case "ok":
 			res.Action = "ok"
