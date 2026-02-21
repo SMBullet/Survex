@@ -125,6 +125,7 @@ func buildNucleiArgs(inputFile, outputFile string) []string {
 		"-je", outputFile, // json-export to file (JSONL format)
 		"-silent",
 		"-no-interactsh", // disable OAST callbacks (safer for CI, no external dependencies)
+		"-duc",           // disable update check on every run (saves 10-30s)
 
 		// Severity: include "info" — required for subdomain takeovers,
 		// panel detection, and SSL SAN enumeration templates
@@ -134,12 +135,12 @@ func buildNucleiArgs(inputFile, outputFile string) []string {
 		"-exclude-tags", "dos,fuzz,generic-tokens,tls-sni-proxy",
 
 		// Performance — balanced for ASM scanning (not too aggressive)
-		"-rl", "150",   // max requests/second across all templates
-		"-c", "25",     // parallel template execution count
-		"-bs", "25",    // hosts per template batch
+		"-rl", "150",  // max requests/second across all templates
+		"-c", "25",    // parallel template execution count
+		"-bs", "25",   // hosts per template batch
 		"-timeout", "10",
 		"-retries", "1",
-		"-mhe", "30",   // max host errors before skipping a host
+		"-mhe", "10",  // drop a host after 10 errors (was 30) — faster on dead/filtered hosts
 		"-ss", "host-spray", // run all templates against one host before moving to next
 	}
 

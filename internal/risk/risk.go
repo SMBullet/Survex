@@ -58,9 +58,13 @@ func Score(result *models.ScanResult) []models.Finding {
 	now := time.Now()
 
 	newPorts := make(map[string]bool)
+	newHTTP := make(map[string]bool)
 	if result.Diff != nil {
 		for _, s := range result.Diff.NewOpenPorts {
 			newPorts[fmt.Sprintf("%s:%d", s.Host, s.Port)] = true
+		}
+		for _, u := range result.Diff.NewHTTPURLs {
+			newHTTP[u] = true
 		}
 	}
 	firstScan := result.Diff == nil
@@ -94,7 +98,7 @@ func Score(result *models.ScanResult) []models.Finding {
 					Title:     "Admin panel exposed",
 					Detail:    fmt.Sprintf("Page title '%s' at %s suggests an administrative interface", h.Title, h.URL),
 					FirstSeen: now,
-					New:       firstScan,
+					New:       firstScan || newHTTP[h.URL],
 				})
 				break
 			}
@@ -107,7 +111,7 @@ func Score(result *models.ScanResult) []models.Finding {
 				Title:     "Unencrypted HTTP service",
 				Detail:    fmt.Sprintf("%s is accessible over plain HTTP without TLS", h.URL),
 				FirstSeen: now,
-				New:       firstScan,
+				New:       firstScan || newHTTP[h.URL],
 			})
 		}
 	}

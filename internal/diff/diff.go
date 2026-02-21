@@ -58,6 +58,17 @@ func Compute(prev, curr *models.ScanResult) *models.Diff {
 		}
 	}
 
+	// New HTTP services
+	prevHTTP := make(map[string]bool)
+	for _, h := range prev.HTTP {
+		prevHTTP[h.URL] = true
+	}
+	for _, h := range curr.HTTP {
+		if !prevHTTP[h.URL] {
+			d.NewHTTPURLs = append(d.NewHTTPURLs, h.URL)
+		}
+	}
+
 	// TLS issuer changes
 	prevTLS := make(map[string]string)
 	for _, h := range prev.HTTP {

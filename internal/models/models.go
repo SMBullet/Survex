@@ -89,6 +89,7 @@ type Diff struct {
 	RemovedSubdomains []string  `json:"removed_subdomains"`
 	NewOpenPorts      []Service `json:"new_open_ports"`
 	RemovedPorts      []Service `json:"removed_ports"`
+	NewHTTPURLs       []string  `json:"new_http_urls"`
 	TLSChanges        []string  `json:"tls_changes"`
 }
 
