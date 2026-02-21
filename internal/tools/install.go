@@ -460,29 +460,41 @@ func queryToolVersion(path, flag string) (string, error) {
 // versionFirstLine extracts a clean version string from tool output.
 // ProjectDiscovery tools print ASCII art banners before the actual version,
 // so we prefer a line containing a semver pattern (vX.Y.Z) when present.
+// The gologger "[INF]" prefix is stripped from the returned line.
 func versionFirstLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
 
-	// Pass 1: return the first line that contains a semver-like token (v1.2.3).
+	// Pass 1: prefer a line that contains a semver token (v1.2.3).
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if containsVersion(line) {
-			return line
+			return stripLogPrefix(line)
 		}
 	}
 
-	// Pass 2: return the first line that looks like readable text (not ASCII art).
+	// Pass 2: first readable non-art line.
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 		if !isAsciiArt(line) {
-			return line
+			return stripLogPrefix(line)
 		}
 	}
 
 	return strings.TrimSpace(s)
+}
+
+// stripLogPrefix removes gologger-style prefixes like "[INF] " from a line.
+func stripLogPrefix(s string) string {
+	upper := strings.ToUpper(s)
+	for _, pfx := range []string{"[INF] ", "[WRN] ", "[ERR] ", "[DBG] "} {
+		if strings.HasPrefix(upper, pfx) {
+			return strings.TrimSpace(s[len(pfx):])
+		}
+	}
+	return s
 }
 
 // containsVersion reports whether s contains a version token like v1.2.3.
