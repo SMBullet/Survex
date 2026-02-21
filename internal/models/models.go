@@ -163,6 +163,36 @@ type EmailSecurityResult struct {
 	DKIM         string `json:"dkim,omitempty"`
 }
 
+// ── DNS Zone Transfer ──────────────────────────────────────────────────────
+
+// ZoneTransferResult records a successful DNS zone transfer (AXFR) attempt.
+type ZoneTransferResult struct {
+	Domain  string `json:"domain"`  // the zone that was transferred
+	Records int    `json:"records"` // number of DNS records dumped
+}
+
+// ── JavaScript Secret Scanning ────────────────────────────────────────────
+
+// JSSecret holds a secret or sensitive credential found in a JavaScript file.
+type JSSecret struct {
+	URL     string `json:"url"`     // URL of the JS file where the secret was found
+	Host    string `json:"host"`    // hostname
+	Type    string `json:"type"`    // AWS Key | GitHub Token | API Key | Private Key | etc.
+	Match   string `json:"match"`   // the matched value (first 80 chars, truncated for safety)
+	Pattern string `json:"pattern"` // the regex pattern name that matched
+}
+
+// ── GitHub Exposure ─────────────────────────────────────────────────────────
+
+// GitHubExposure holds a code exposure found on GitHub/GitLab for a target domain.
+type GitHubExposure struct {
+	Repository string `json:"repository"` // e.g. "owner/repo"
+	RepoURL    string `json:"repo_url"`   // https://github.com/owner/repo
+	FileURL    string `json:"file_url"`   // direct link to the file
+	FileName   string `json:"file_name"`  // e.g. "config.py"
+	Query      string `json:"query"`      // the search query that surfaced this result
+}
+
 // ── Subdomain Takeover ─────────────────────────────────────────────────────
 
 // TakeoverResult holds the outcome of a subdomain takeover check for a single host.
@@ -227,7 +257,10 @@ type ScanResult struct {
 	ShodanHosts     []ShodanHost     `json:"shodan_hosts,omitempty"`
 	EmailSecurity   []EmailSecurityResult `json:"email_security,omitempty"`
 	Takeovers       []TakeoverResult      `json:"takeovers,omitempty"`
-	Vulnerabilities []Vulnerability  `json:"vulnerabilities,omitempty"`
-	Findings        []Finding        `json:"findings"`
-	Diff            *Diff            `json:"diff,omitempty"`
+	ZoneTransfers   []ZoneTransferResult  `json:"zone_transfers,omitempty"`
+	JSSecrets       []JSSecret            `json:"js_secrets,omitempty"`
+	GitHubExposures []GitHubExposure      `json:"github_exposures,omitempty"`
+	Vulnerabilities []Vulnerability       `json:"vulnerabilities,omitempty"`
+	Findings        []Finding             `json:"findings"`
+	Diff            *Diff                 `json:"diff,omitempty"`
 }

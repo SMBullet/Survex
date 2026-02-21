@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"text/tabwriter"
+	"time"
 
 	"github.com/SMBullet/Survex/internal/config"
 	"github.com/SMBullet/Survex/internal/risk"
@@ -91,6 +94,23 @@ var updateCmd = &cobra.Command{
 	RunE:  runUpdate,
 }
 
+var watchCmd = &cobra.Command{
+	Use:   "watch",
+	Short: "Continuously monitor targets and alert on changes",
+	Long: `Continuously run scans on a schedule and notify on new findings.
+
+Watch mode runs the full scan pipeline repeatedly at the configured interval.
+After each scan, Survex compares results to the previous scan and fires any
+configured webhooks if new subdomains or findings appear.
+
+The command blocks until interrupted (Ctrl+C).
+
+Examples:
+  survex watch --config clients/example.yaml --interval 24h
+  survex watch -t example.com -m all --client example --interval 6h`,
+	RunE: runWatch,
+}
+
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the Survex web dashboard",
@@ -169,6 +189,13 @@ var (
 	// serve subcommand
 	flagServeAddr       string
 	flagServeReportsDir string
+
+	// watch subcommand
+	flagWatchInterval string
+
+	// new scan flags
+	flagWebhook     string // comma-separated webhook URLs
+	flagGitHubToken string
 )
 
 func init() {
@@ -200,6 +227,12 @@ func init() {
 	// shodan
 	scanCmd.Flags().StringVar(&flagShodanKey, "shodan-key", "", "Shodan API key (enables shodan module)")
 
+	// notifications
+	scanCmd.Flags().StringVar(&flagWebhook, "webhook", "", "Webhook URL(s) for notifications (comma-separated). Slack/Discord/generic supported.")
+
+	// github
+	scanCmd.Flags().StringVar(&flagGitHubToken, "github-token", "", "GitHub personal access token (improves rate limits for github module)")
+
 	// ── diff / report flags ───────────────────────────────────────────────────
 	diffCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to client config YAML")
 	diffCmd.Flags().StringVar(&flagClient, "client", "", "Client name")
@@ -223,7 +256,15 @@ func init() {
 	serveCmd.Flags().StringVar(&flagServeAddr, "addr", "127.0.0.1:8080", "Listen address (host:port)")
 	serveCmd.Flags().StringVar(&flagServeReportsDir, "reports-dir", "reports", "Directory containing scan report output")
 
-	rootCmd.AddCommand(scanCmd, diffCmd, reportCmd, historyCmd, modulesCmd, updateCmd, installCmd, serveCmd)
+	// ── watch flags ───────────────────────────────────────────────────────
+	watchCmd.Flags().StringVar(&flagWatchInterval, "interval", "24h", "How often to re-scan (e.g. 1h, 6h, 24h, 7d)")
+	watchCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to client config YAML")
+	watchCmd.Flags().StringVarP(&flagTarget, "target", "t", "", "Comma-separated targets")
+	watchCmd.Flags().StringVarP(&flagModules, "modules", "m", "", `Comma-separated modules, or "all"`)
+	watchCmd.Flags().StringVar(&flagClient, "client", "", "Client name")
+	watchCmd.Flags().StringVar(&flagProfile, "profile", "", "Scan profile")
+
+	rootCmd.AddCommand(scanCmd, diffCmd, reportCmd, historyCmd, modulesCmd, updateCmd, installCmd, serveCmd, watchCmd)
 }
 
 // ── Config resolution ─────────────────────────────────────────────────────────
@@ -331,6 +372,21 @@ func applyFlagsToConfig(cfg *config.Config) {
 	if flagShodanKey != "" {
 		cfg.Shodan.APIKey = flagShodanKey
 		cfg.Shodan.Enabled = true
+	}
+	if flagGitHubToken != "" {
+		cfg.GitHub.Token = flagGitHubToken
+		cfg.GitHub.Enabled = true
+	}
+	if flagWebhook != "" {
+		for _, u := range strings.Split(flagWebhook, ",") {
+			u = strings.TrimSpace(u)
+			if u != "" {
+				cfg.Alerts.Webhooks = append(cfg.Alerts.Webhooks, config.WebhookConfig{
+					URL: u,
+					On:  "new_findings",
+				})
+			}
+		}
 	}
 }
 
@@ -704,6 +760,82 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func runWatch(cmd *cobra.Command, args []string) error {
+	// Parse interval
+	intervalStr := flagWatchInterval
+	if intervalStr == "" {
+		intervalStr = "24h"
+	}
+
+	// Support "7d" shorthand (not supported by time.ParseDuration)
+	if len(intervalStr) > 1 && intervalStr[len(intervalStr)-1] == 'd' {
+		days := intervalStr[:len(intervalStr)-1]
+		intervalStr = days + "h"
+		// Multiply by 24 manually — parse as hours then multiply
+		d, err := time.ParseDuration(intervalStr)
+		if err == nil {
+			intervalStr = fmt.Sprintf("%dh", int(d.Hours())*24)
+		}
+	}
+	interval, err := time.ParseDuration(intervalStr)
+	if err != nil {
+		return fmt.Errorf("invalid --interval %q: %w", flagWatchInterval, err)
+	}
+
+	if err := initStore(); err != nil {
+		return fmt.Errorf("initializing store: %w", err)
+	}
+
+	cfg, err := resolveConfig()
+	if err != nil {
+		return err
+	}
+
+	// Signal handling: SIGINT / SIGTERM stop the loop cleanly.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
+	log.Printf("[survex] watch mode started — scanning every %s", interval)
+	log.Printf("[survex] press Ctrl+C to stop\n")
+
+	scanNum := 0
+	for {
+		scanNum++
+		log.Printf("[survex] watch: starting scan #%d for %s", scanNum, cfg.Client)
+
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		result, scanErr := scan.Run(ctx, cfg)
+		stop()
+
+		if scanErr != nil {
+			if ctx.Err() != nil {
+				fmt.Fprintf(os.Stderr, "\n[survex] watch: interrupted\n")
+				return nil
+			}
+			log.Printf("[survex] watch: scan #%d failed: %v", scanNum, scanErr)
+		} else {
+			maxSev := risk.MaxSeverity(result.Findings)
+			newSubs := 0
+			if result.Diff != nil {
+				newSubs = len(result.Diff.NewSubdomains)
+			}
+			log.Printf("[survex] watch: scan #%d complete — findings: %d (max: %s), new subs: %d",
+				scanNum, len(result.Findings), maxSev, newSubs)
+		}
+
+		log.Printf("[survex] watch: next scan in %s (at %s)", interval, time.Now().Add(interval).Format("2006-01-02 15:04:05"))
+
+		select {
+		case <-time.After(interval):
+			// continue loop
+		case <-sigCh:
+			fmt.Fprintf(os.Stderr, "\n[survex] watch: stopped\n")
+			return nil
+		}
+	}
 }
 
 func runServe(cmd *cobra.Command, args []string) error {

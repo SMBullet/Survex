@@ -162,6 +162,21 @@ var AllTools = []ToolDef{
 		Kind:        KindBuiltIn,
 		Description: "Email security checks (SPF, DMARC, DKIM)",
 	},
+	{
+		Name:        "dnsbrute",
+		Kind:        KindBuiltIn,
+		Description: "DNS brute-force + permutation engine (embedded 1500-word wordlist)",
+	},
+	{
+		Name:        "jsscan",
+		Kind:        KindBuiltIn,
+		Description: "JavaScript secret scanning (50+ regex patterns: AWS, GitHub, Stripe, JWT, etc.)",
+	},
+	{
+		Name:        "github",
+		Kind:        KindAPI,
+		Description: "GitHub code exposure search (hardcoded secrets, config files). Optional: --github-token",
+	},
 }
 
 // ─── Status Checking ───────────────────────────────────────────────────────────

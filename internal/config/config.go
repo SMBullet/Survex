@@ -17,13 +17,15 @@ type Config struct {
 
 	// Modules lists which scan modules to run.
 	// Use ["all"] to run everything, or name specific modules:
-	//   subfinder  amass  crts  dns  nmap  httpx  tls  waf
-	//   headers  cors  cookies  s3  gau  katana  screenshot  nuclei  shodan
+	//   subfinder  amass  crts  dns  dnsbrute  nmap  httpx  tls  waf
+	//   headers  cors  cookies  s3  gau  katana  jsscan  screenshot  nuclei
+	//   shodan  takeover  email  github
 	Modules []string `yaml:"modules"`
 
 	Scan   ScanOptions   `yaml:"scan"`
 	Nuclei NucleiOptions `yaml:"nuclei"`
 	Shodan ShodanOptions `yaml:"shodan"`
+	GitHub GitHubOptions `yaml:"github"`
 	Output OutputOptions `yaml:"output"`
 	Alerts AlertOptions  `yaml:"alerts"`
 }
@@ -107,9 +109,35 @@ type OutputOptions struct {
 	KeepHistory bool   `yaml:"keep_history"`
 }
 
-// AlertOptions controls CI/CD exit code behavior.
+// AlertOptions controls CI/CD exit code behavior and webhook notifications.
 type AlertOptions struct {
-	FailOn string `yaml:"fail_on"` // low | medium | high | critical
+	FailOn   string          `yaml:"fail_on"`  // low | medium | high | critical
+	Webhooks []WebhookConfig `yaml:"webhooks"` // Slack / Discord / generic webhook URLs
+}
+
+// WebhookConfig defines a single webhook notification target.
+type WebhookConfig struct {
+	// URL is the full webhook URL.
+	// Slack incoming webhooks, Discord webhooks, and generic HTTP endpoints are supported.
+	URL string `yaml:"url"`
+
+	// On controls when the webhook fires:
+	//   always         — every scan completes
+	//   new_findings   — only when new risk findings are detected (default)
+	//   new_subdomains — only when new subdomains are discovered
+	On string `yaml:"on"`
+}
+
+// GitHubOptions enables passive GitHub code exposure scanning.
+type GitHubOptions struct {
+	// Token is a GitHub personal access token (optional).
+	// Without a token, the API is limited to 10 requests per minute.
+	// Create a token at https://github.com/settings/tokens (no scopes needed for public repos).
+	Token string `yaml:"token"`
+
+	// Enabled must be true for GitHub scanning to run.
+	// Automatically enabled when modules includes "github".
+	Enabled bool `yaml:"enabled"`
 }
 
 // profileModules maps scan profile names to their module lists.
@@ -230,6 +258,11 @@ func (c *Config) NucleiExcludeTags() []string {
 // ShodanEnabled returns true if Shodan is enabled and an API key is set.
 func (c *Config) ShodanEnabled() bool {
 	return c.Shodan.Enabled && c.Shodan.APIKey != ""
+}
+
+// GitHubEnabled returns true if the github module is active.
+func (c *Config) GitHubEnabled() bool {
+	return c.HasModule("github")
 }
 
 // Load reads and validates a YAML config file.

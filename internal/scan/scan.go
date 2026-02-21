@@ -154,6 +154,49 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		return result, ctx.Err()
 	}
 
+	// ── Step 2b: DNS Brute Force + Permutations ───────────────────────────────
+	if cfg.HasModule("dnsbrute") && !cfg.Scan.NoSubs && !cfg.Scan.Passive {
+		if len(domains) == 0 {
+			log.Printf("[survex] dnsbrute: skipped (no domain targets)")
+		} else {
+			for _, domain := range domains {
+				log.Printf("[survex] DNS brute-forcing %s (wordlist + permutations)", domain)
+				bruteHits := tools.RunDNSBrute(domain, timeout)
+				log.Printf("[survex]   dnsbrute [%s]: %d new hosts from wordlist", domain, len(bruteHits))
+				for _, h := range bruteHits {
+					hostSources[h] = append(hostSources[h], "dnsbrute")
+				}
+
+				permHits := tools.Permutate(result.Subdomains, domain, timeout)
+				log.Printf("[survex]   permutate [%s]: %d new hosts from permutations", domain, len(permHits))
+				for _, h := range permHits {
+					hostSources[h] = append(hostSources[h], "permutate")
+				}
+			}
+
+			// Rebuild the deduplicated host list including brute-force hits
+			existingHosts := make(map[string]struct{})
+			for _, sub := range result.Subdomains {
+				existingHosts[sub.Name] = struct{}{}
+			}
+			for host, sources := range hostSources {
+				if _, exists := existingHosts[host]; exists {
+					continue // already in result.Subdomains
+				}
+				result.Subdomains = append(result.Subdomains, models.Subdomain{
+					Name:      host,
+					IPAddress: tools.ResolveIP(host),
+					Sources:   sources,
+				})
+			}
+			log.Printf("[survex] %d total unique hosts after brute force", len(result.Subdomains))
+		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 3: DNS Resolution ─────────────────────────────────────────────────
 	if cfg.HasModule("dns") {
 		log.Printf("[survex] resolving DNS records")
@@ -165,6 +208,25 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 			result.DNS = append(result.DNS, records...)
 		}
 		log.Printf("[survex]   %d DNS records collected", len(result.DNS))
+
+		// Zone transfer attempts (per root domain)
+		if !cfg.Scan.Passive {
+			for _, domain := range domains {
+				log.Printf("[survex]   attempting zone transfer (AXFR) for %s", domain)
+				axfrRecords, ok := tools.TryZoneTransfers(domain)
+				if ok {
+					log.Printf("[survex]   AXFR SUCCESS for %s: %d records", domain, len(axfrRecords))
+					result.DNS = append(result.DNS, axfrRecords...)
+					// Mark in result that a zone transfer succeeded (for risk scoring)
+					result.ZoneTransfers = append(result.ZoneTransfers, models.ZoneTransferResult{
+						Domain:  domain,
+						Records: len(axfrRecords),
+					})
+				} else {
+					log.Printf("[survex]   AXFR refused/failed for %s (expected)", domain)
+				}
+			}
+		}
 	}
 
 	if ctx.Err() != nil {
@@ -413,6 +475,25 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		return result, ctx.Err()
 	}
 
+	// ── Step 13b: JavaScript Secret Scanning ─────────────────────────────────
+	if cfg.HasModule("jsscan") && !cfg.Scan.Passive && len(result.HistoricalURLs) > 0 {
+		log.Printf("[survex] scanning JavaScript files for secrets (%d candidate URLs)", len(result.HistoricalURLs))
+		var urls []string
+		for _, h := range result.HistoricalURLs {
+			urls = append(urls, h.URL)
+		}
+		// Also scan live HTTP URLs (may be JS entry points)
+		for _, h := range result.HTTP {
+			urls = append(urls, h.URL)
+		}
+		result.JSSecrets = tools.ScanJS(urls, timeout)
+		log.Printf("[survex]   jsscan: %d secrets/exposures found", len(result.JSSecrets))
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 14: Vulnerability Scanning (nuclei) ───────────────────────────────
 	if cfg.HasModule("nuclei") && !cfg.Scan.Passive {
 		// Update templates before scan if configured
@@ -490,6 +571,21 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		log.Printf("[survex]   %d Shodan host records retrieved", len(result.ShodanHosts))
 	}
 
+	// ── Step 16b: GitHub Exposure Check ──────────────────────────────────────
+	if cfg.GitHubEnabled() {
+		if len(domains) == 0 {
+			log.Printf("[survex] github: skipped (no domain targets)")
+		} else {
+			log.Printf("[survex] checking GitHub for code exposures (%d domains)", len(domains))
+			result.GitHubExposures = tools.CheckGitHubExposure(domains, cfg.GitHub.Token)
+			log.Printf("[survex]   github: %d exposures found", len(result.GitHubExposures))
+		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 17: Diff ──────────────────────────────────────────────────────────
 	prev, err := store.LoadLast(cfg.Client)
 	if err != nil {
@@ -500,6 +596,11 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 	// ── Step 18: Risk Scoring ──────────────────────────────────────────────────
 	result.Findings = risk.Score(result)
 	log.Printf("[survex] %d findings generated (max: %s)", len(result.Findings), risk.MaxSeverity(result.Findings))
+
+	// ── Step 18b: Webhook Notifications ────────────────────────────────────────
+	if len(cfg.Alerts.Webhooks) > 0 {
+		tools.SendNotifications(cfg.Alerts.Webhooks, result)
+	}
 
 	// ── Step 19: Persist ───────────────────────────────────────────────────────
 	now := time.Now()
@@ -664,7 +765,10 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 		"screenshots.json":      result.Screenshots,
 		"shodan.json":           result.ShodanHosts,
 		"takeovers.json":        result.Takeovers,
+		"zone_transfers.json":   result.ZoneTransfers,
 		"email_security.json":   result.EmailSecurity,
+		"js_secrets.json":       result.JSSecrets,
+		"github_exposures.json": result.GitHubExposures,
 		"vulnerabilities.json":  result.Vulnerabilities,
 		"findings.json":         result.Findings,
 		"diff.json":             result.Diff,
@@ -688,9 +792,12 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 			"historical_count": len(result.HistoricalURLs),
 			"screenshot_count": len(result.Screenshots),
 			"shodan_count":     len(result.ShodanHosts),
-			"takeover_count":   len(result.Takeovers),
-			"email_count":      len(result.EmailSecurity),
-			"vuln_count":       len(result.Vulnerabilities),
+			"takeover_count":        len(result.Takeovers),
+			"zone_transfer_count":   len(result.ZoneTransfers),
+			"email_count":           len(result.EmailSecurity),
+			"js_secret_count":       len(result.JSSecrets),
+			"github_exposure_count": len(result.GitHubExposures),
+			"vuln_count":            len(result.Vulnerabilities),
 			"finding_count":    len(result.Findings),
 			"max_severity":     risk.MaxSeverity(result.Findings),
 		},

@@ -15,8 +15,13 @@ targets:
   # - hosts.txt           # file → loaded line-by-line, comments (#) ignored
 
 # Modules to run. Use "all" or list specific ones:
-#   subfinder  amass  crts  dns  nmap  httpx  tls  waf
-#   headers  cors  cookies  s3  gau  katana  screenshot  nuclei  shodan
+#   Built-in (no external tools):
+#     crts  dns  dnsbrute  tls  waf  headers  cors  cookies  s3
+#     takeover  email  jsscan
+#   External Go tools (auto-installed via 'survex install'):
+#     subfinder  amass  httpx  gau  katana  screenshot  nuclei
+#   API (require keys):
+#     shodan  github
 modules:
   - all
 
@@ -112,9 +117,30 @@ output:
   format: json
   keep_history: true
 
-# ── Alerting (CI/CD) ───────────────────────────────────────────────────────────
+# ── GitHub code exposure scanning ─────────────────────────────────────────────
+github:
+  # token: GitHub personal access token (no scopes needed for public repos).
+  # Without a token, the API is limited to 10 requests per minute.
+  # Create a token at https://github.com/settings/tokens
+  # CLI: --github-token
+  token: ""
+
+  # enabled: automatically set to true when modules includes "github"
+  enabled: false
+
+# ── Alerting (CI/CD + Webhooks) ────────────────────────────────────────────────
 alerts:
   # fail_on: exit code 1 if findings at or above this severity are found.
   # Options: low | medium | high | critical
   # CLI: --fail-on
   fail_on: high
+
+  # webhooks: send notifications when scan completes or new findings appear.
+  # CLI: --webhook <url>
+  # Supported: Slack incoming webhooks, Discord webhooks, generic HTTP POST
+  webhooks: []
+  # webhooks:
+  #   - url: https://hooks.slack.com/services/T.../B.../...
+  #     on: new_findings      # always | new_findings | new_subdomains
+  #   - url: https://discord.com/api/webhooks/...
+  #     on: always

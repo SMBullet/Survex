@@ -266,6 +266,9 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="card"><div class="card-value">{{len .Result.S3Buckets}}</div><div class="card-label">Cloud Buckets</div></div>
     <div class="card"><div class="card-value">{{len .Result.Vulnerabilities}}</div><div class="card-label">Nuclei Vulns</div></div>
     <div class="card"><div class="card-value">{{countVulnTakeovers .Result.Takeovers}}</div><div class="card-label">Takeovers</div></div>
+    <div class="card"><div class="card-value">{{len .Result.JSSecrets}}</div><div class="card-label">JS Secrets</div></div>
+    <div class="card"><div class="card-value">{{len .Result.GitHubExposures}}</div><div class="card-label">GitHub Leaks</div></div>
+    <div class="card"><div class="card-value">{{len .Result.ZoneTransfers}}</div><div class="card-label">AXFR Success</div></div>
     <div class="card"><div class="card-value">{{len .Findings}}</div><div class="card-label">Total Findings</div></div>
     <div class="card"><div class="card-value">{{len .Result.Screenshots}}</div><div class="card-label">Screenshots</div></div>
   </div>
@@ -506,6 +509,64 @@ const htmlTemplate = `<!DOCTYPE html>
         <td>{{if .DMARCPresent}}<span style="color:#34d399;font-weight:600">Present</span>{{else}}<span style="color:#f87171;font-weight:600">Missing</span>{{end}}</td>
         <td>{{if .DKIMPresent}}<span style="color:#34d399;font-weight:600">Found</span>{{else}}<span style="color:#6b7280">Not found</span>{{end}}</td>
         <td class="mono finding-detail">{{if .DKIMSelector}}{{.DKIMSelector}}{{else}}—{{end}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- Zone Transfers -->
+  {{if .Result.ZoneTransfers}}
+  <div class="section">
+    <h2>DNS Zone Transfers Allowed — CRITICAL ({{len .Result.ZoneTransfers}})</h2>
+    <table>
+      <thead><tr><th>Domain</th><th>Records Dumped</th><th>Severity</th></tr></thead>
+      <tbody>
+      {{range .Result.ZoneTransfers}}
+      <tr>
+        <td class="mono">{{.Domain}}</td>
+        <td><span style="color:#dc2626;font-weight:700">{{.Records}}</span></td>
+        <td><span style="background:#dc2626;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">CRITICAL</span></td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- JavaScript Secrets -->
+  {{if .Result.JSSecrets}}
+  <div class="section">
+    <h2>JavaScript Secrets ({{len .Result.JSSecrets}})</h2>
+    <table>
+      <thead><tr><th>Host</th><th>Type</th><th>File</th><th>Match (truncated)</th></tr></thead>
+      <tbody>
+      {{range .Result.JSSecrets}}
+      <tr>
+        <td class="mono">{{.Host}}</td>
+        <td><span style="color:#f87171;font-weight:600">{{.Type}}</span></td>
+        <td class="mono finding-detail">{{.URL}}</td>
+        <td class="mono finding-detail" style="color:#fbbf24">{{.Match}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- GitHub Exposures -->
+  {{if .Result.GitHubExposures}}
+  <div class="section">
+    <h2>GitHub Code Exposures ({{len .Result.GitHubExposures}})</h2>
+    <table>
+      <thead><tr><th>Repository</th><th>File</th><th>Search Query</th></tr></thead>
+      <tbody>
+      {{range .Result.GitHubExposures}}
+      <tr>
+        <td><a href="{{.RepoURL}}" target="_blank">{{.Repository}}</a></td>
+        <td><a href="{{.FileURL}}" target="_blank" class="mono finding-detail">{{.FileName}}</a></td>
+        <td class="finding-detail">{{.Query}}</td>
       </tr>
       {{end}}
       </tbody>

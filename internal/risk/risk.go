@@ -381,6 +381,48 @@ func Score(result *models.ScanResult) []models.Finding {
 		}
 	}
 
+	// ── Zone transfer findings ────────────────────────────────────────────────
+	for _, zt := range result.ZoneTransfers {
+		findings = append(findings, models.Finding{
+			Asset:     zt.Domain,
+			Severity:  "critical",
+			Title:     "DNS zone transfer allowed (AXFR)",
+			Detail:    fmt.Sprintf("Nameserver for %s permitted a zone transfer — %d DNS records exposed (full internal DNS structure)", zt.Domain, zt.Records),
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
+	// ── JavaScript secret findings ─────────────────────────────────────────────
+	for _, js := range result.JSSecrets {
+		findings = append(findings, models.Finding{
+			Asset:     js.Host,
+			Severity:  jsSecretSeverity(js.Type),
+			Title:     fmt.Sprintf("Secret exposed in JavaScript: %s", js.Type),
+			Detail:    fmt.Sprintf("Found in %s — match: %s", js.URL, js.Match),
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
+	// ── GitHub exposure findings ───────────────────────────────────────────────
+	for _, gh := range result.GitHubExposures {
+		sev := "high"
+		nameLower := strings.ToLower(gh.FileName)
+		if strings.Contains(nameLower, "password") || strings.Contains(nameLower, "secret") ||
+			strings.Contains(nameLower, "credential") || strings.HasSuffix(nameLower, ".env") {
+			sev = "critical"
+		}
+		findings = append(findings, models.Finding{
+			Asset:     gh.Repository,
+			Severity:  sev,
+			Title:     "Target domain found in public GitHub repository",
+			Detail:    fmt.Sprintf("File: %s in %s | query: %s | %s", gh.FileName, gh.Repository, gh.Query, gh.FileURL),
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
 	// ── Nuclei vulnerability findings ─────────────────────────────────────────
 	for _, v := range result.Vulnerabilities {
 		detail := fmt.Sprintf("Template: %s | URL: %s", v.TemplateID, v.URL)
@@ -525,4 +567,39 @@ func MaxSeverity(findings []models.Finding) string {
 func MeetsThreshold(maxSeverity, threshold string) bool {
 	order := severityOrder()
 	return order[maxSeverity] >= order[threshold]
+}
+
+// jsSecretSeverity maps a JS secret pattern type to a finding severity.
+func jsSecretSeverity(secretType string) string {
+	switch {
+	case strings.Contains(secretType, "Private Key"),
+		strings.Contains(secretType, "AWS Access Key"),
+		strings.Contains(secretType, "AWS Secret"),
+		strings.Contains(secretType, "Stripe Secret"),
+		strings.Contains(secretType, "GitHub Fine-grained"),
+		strings.Contains(secretType, "GitHub Classic"),
+		strings.Contains(secretType, "GitHub Actions"):
+		return "critical"
+	case strings.Contains(secretType, "Google API"),
+		strings.Contains(secretType, "Slack Token"),
+		strings.Contains(secretType, "Slack Webhook"),
+		strings.Contains(secretType, "SendGrid"),
+		strings.Contains(secretType, "Twilio"),
+		strings.Contains(secretType, "NPM Token"),
+		strings.Contains(secretType, "JWT Token"),
+		strings.Contains(secretType, "Hardcoded Password"),
+		strings.Contains(secretType, "Hardcoded DB"):
+		return "high"
+	case strings.Contains(secretType, "Hardcoded API Key"),
+		strings.Contains(secretType, "Hardcoded Secret"),
+		strings.Contains(secretType, "Hardcoded Auth"),
+		strings.Contains(secretType, "Firebase"),
+		strings.Contains(secretType, "Discord Webhook"),
+		strings.Contains(secretType, "S3 Bucket"),
+		strings.Contains(secretType, "Azure Storage"),
+		strings.Contains(secretType, "GCS Bucket"):
+		return "medium"
+	default:
+		return "low"
+	}
 }
