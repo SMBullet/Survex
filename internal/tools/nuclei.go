@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/SMBullet/Survex/internal/config"
@@ -88,8 +89,9 @@ var asmTemplates = []string{
 //
 // Requires nuclei v3+: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 func RunNuclei(targets []string, opts config.NucleiOptions) ([]models.Vulnerability, error) {
-	if _, err := exec.LookPath("nuclei"); err != nil {
-		return nil, fmt.Errorf("nuclei not found in PATH: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest")
+	nucleiPath, err := findNuclei()
+	if err != nil {
+		return nil, err
 	}
 	if len(targets) == 0 {
 		return nil, nil
@@ -116,7 +118,7 @@ func RunNuclei(targets []string, opts config.NucleiOptions) ([]models.Vulnerabil
 	defer os.Remove(tmpOutName)
 
 	args := buildNucleiArgs(tmpIn.Name(), tmpOutName, opts)
-	cmd := exec.Command("nuclei", args...)
+	cmd := exec.Command(nucleiPath, args...)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -229,11 +231,12 @@ func parseNucleiOutput(data []byte) []models.Vulnerability {
 
 // UpdateTemplates runs nuclei -update-templates to pull the latest community templates.
 func UpdateTemplates() error {
-	if _, err := exec.LookPath("nuclei"); err != nil {
-		return fmt.Errorf("nuclei not found in PATH")
+	nucleiPath, err := findNuclei()
+	if err != nil {
+		return err
 	}
 
-	cmd := exec.Command("nuclei", "-update-templates", "-silent")
+	cmd := exec.Command(nucleiPath, "-update-templates", "-silent")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
@@ -241,4 +244,33 @@ func UpdateTemplates() error {
 		return fmt.Errorf("nuclei template update failed: %w\n%s", err, stderr.String())
 	}
 	return nil
+}
+
+// findNuclei locates the ProjectDiscovery nuclei binary, checking ~/go/bin
+// before falling back to PATH (mirrors the same logic as findPDHttpx).
+func findNuclei() (string, error) {
+	var candidates []string
+
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append(candidates, filepath.Join(home, "go", "bin", "nuclei"))
+	}
+	if gopath := os.Getenv("GOPATH"); gopath != "" {
+		candidates = append(candidates, filepath.Join(gopath, "bin", "nuclei"))
+	}
+	if p, err := exec.LookPath("nuclei"); err == nil {
+		candidates = append(candidates, p)
+	}
+
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err != nil {
+			continue
+		}
+		return p, nil
+	}
+
+	return "", fmt.Errorf(
+		"nuclei not found — install with:\n" +
+			"  go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest\n" +
+			"then run: source ~/.bashrc",
+	)
 }

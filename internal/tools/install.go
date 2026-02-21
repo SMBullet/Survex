@@ -203,7 +203,7 @@ func CheckStatus(def ToolDef) ToolStatus {
 		}
 
 		lower := strings.ToLower(out)
-		if def.PDTool && !strings.Contains(lower, "projectdiscovery") {
+		if def.PDTool && !isPDOutput(lower) {
 			// Same binary name, wrong tool (e.g., Python httpx on Kali Linux).
 			lastConflict = fmt.Sprintf(
 				"'%s' at %s is NOT the ProjectDiscovery version (got: %s)",
@@ -457,14 +457,75 @@ func queryToolVersion(path, flag string) (string, error) {
 	return string(out), err
 }
 
-// versionFirstLine returns the first non-empty line from a version output string.
+// versionFirstLine extracts a clean version string from tool output.
+// ProjectDiscovery tools print ASCII art banners before the actual version,
+// so we prefer a line containing a semver pattern (vX.Y.Z) when present.
 func versionFirstLine(s string) string {
-	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
-		if line = strings.TrimSpace(line); line != "" {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+
+	// Pass 1: return the first line that contains a semver-like token (v1.2.3).
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if containsVersion(line) {
 			return line
 		}
 	}
+
+	// Pass 2: return the first line that looks like readable text (not ASCII art).
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if !isAsciiArt(line) {
+			return line
+		}
+	}
+
 	return strings.TrimSpace(s)
+}
+
+// containsVersion reports whether s contains a version token like v1.2.3.
+func containsVersion(s string) bool {
+	// Simple check: "v" followed by a digit then "." somewhere in the string.
+	for i := 0; i < len(s)-2; i++ {
+		if s[i] == 'v' && s[i+1] >= '0' && s[i+1] <= '9' {
+			for j := i + 2; j < len(s); j++ {
+				if s[j] == '.' {
+					return true
+				}
+				if s[j] < '0' || s[j] > '9' {
+					break
+				}
+			}
+		}
+	}
+	return false
+}
+
+// isAsciiArt reports whether a line is likely banner/logo art (mostly non-letter chars).
+func isAsciiArt(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	artChars := 0
+	for _, r := range s {
+		if r == '_' || r == '/' || r == '\\' || r == '|' || r == ' ' ||
+			r == '-' || r == '.' || r == '(' || r == ')' {
+			artChars++
+		}
+	}
+	return float64(artChars)/float64(len(s)) > 0.55
+}
+
+// isPDOutput reports whether version output belongs to a ProjectDiscovery tool.
+//
+// Older PD builds printed "projectdiscovery.io" in the banner. Newer builds
+// (subfinder v2.12+, nuclei v3.7+) removed the branding but still use the
+// gologger "[INF]" prefix, which is unique to the PD Go toolchain.
+func isPDOutput(lower string) bool {
+	return strings.Contains(lower, "projectdiscovery") ||
+		strings.Contains(lower, "[inf]")
 }
 
 // installToolHint returns a human-readable install command for a tool.
