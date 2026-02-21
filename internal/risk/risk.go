@@ -423,6 +423,137 @@ func Score(result *models.ScanResult) []models.Finding {
 		})
 	}
 
+	// ── ffuf content discovery findings ───────────────────────────────────────
+	for _, f := range result.FFUFResults {
+		sev := "info"
+		title := "Content discovery: " + f.ResultType + " found"
+		detail := fmt.Sprintf("URL: %s | HTTP %d | %d bytes", f.URL, f.StatusCode, f.ContentLen)
+		switch f.ResultType {
+		case "admin":
+			sev = "high"
+			title = "Admin panel exposed"
+			detail = fmt.Sprintf("Admin interface discovered at %s (HTTP %d)", f.URL, f.StatusCode)
+		case "backup":
+			sev = "critical"
+			title = "Backup/sensitive file exposed"
+			detail = fmt.Sprintf("Potentially sensitive file at %s (HTTP %d, %d bytes)", f.URL, f.StatusCode, f.ContentLen)
+		case "config":
+			sev = "critical"
+			title = "Configuration file exposed"
+			detail = fmt.Sprintf("Configuration file at %s (HTTP %d)", f.URL, f.StatusCode)
+		case "api":
+			sev = "medium"
+			title = "API endpoint discovered"
+			detail = fmt.Sprintf("API path at %s (HTTP %d)", f.URL, f.StatusCode)
+		}
+		// Only surface admin, backup, config as findings — other types are info
+		if sev == "info" {
+			continue
+		}
+		findings = append(findings, models.Finding{
+			Asset:     f.Host,
+			Severity:  sev,
+			Title:     title,
+			Detail:    detail,
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
+	// ── XSS findings (dalfox) ─────────────────────────────────────────────────
+	for _, x := range result.XSSResults {
+		findings = append(findings, models.Finding{
+			Asset:    x.Host,
+			Severity: "high",
+			Title:    fmt.Sprintf("Cross-Site Scripting (%s)", x.Type),
+			Detail:   fmt.Sprintf("Confirmed XSS at %s | Payload: %s | POC: %s", x.URL, x.Payload, x.POC),
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
+	// ── SQLi findings (sqlmap) ─────────────────────────────────────────────────
+	for _, s := range result.SQLiResults {
+		findings = append(findings, models.Finding{
+			Asset:    s.Host,
+			Severity: "critical",
+			Title:    "SQL Injection",
+			Detail:   fmt.Sprintf("SQLi via parameter '%s' at %s | technique: %s | db: %s", s.Parameter, s.URL, s.Technique, s.DBType),
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
+	// ── Open redirect findings ─────────────────────────────────────────────────
+	for _, r := range result.OpenRedirects {
+		findings = append(findings, models.Finding{
+			Asset:    r.Host,
+			Severity: "medium",
+			Title:    "Open Redirect",
+			Detail:   fmt.Sprintf("Parameter '%s' redirects to %s | URL: %s | payload: %s", r.Parameter, r.RedirectsTo, r.URL, r.Payload),
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
+	// ── GraphQL findings ──────────────────────────────────────────────────────
+	for _, gql := range result.GraphQL {
+		if gql.IntrospectionEnabled {
+			findings = append(findings, models.Finding{
+				Asset:    gql.Host,
+				Severity: "medium",
+				Title:    "GraphQL introspection enabled",
+				Detail:   fmt.Sprintf("Full schema exposed at %s — %d types leaked", gql.URL, len(gql.Types)),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		} else {
+			findings = append(findings, models.Finding{
+				Asset:    gql.Host,
+				Severity: "info",
+				Title:    "GraphQL endpoint detected",
+				Detail:   fmt.Sprintf("GraphQL at %s (introspection disabled)", gql.URL),
+				FirstSeen: now,
+				New:       firstScan,
+			})
+		}
+	}
+
+	// ── API endpoint findings ─────────────────────────────────────────────────
+	for _, api := range result.APIEndpoints {
+		sev := "info"
+		title := "API endpoint discovered"
+		detail := fmt.Sprintf("%s endpoint at %s (HTTP %d)", api.Type, api.URL, api.StatusCode)
+		switch api.Type {
+		case "swagger", "openapi":
+			sev = "medium"
+			title = "API documentation publicly exposed"
+			detail = fmt.Sprintf("Swagger/OpenAPI spec at %s — full API schema is public (HTTP %d)", api.URL, api.StatusCode)
+		case "wsdl":
+			sev = "medium"
+			title = "WSDL/SOAP service exposed"
+			detail = fmt.Sprintf("WSDL at %s — SOAP service interface is public (HTTP %d)", api.URL, api.StatusCode)
+		case "rest":
+			// Spring Boot actuator endpoints are high severity
+			if strings.Contains(api.URL, "actuator") || strings.Contains(api.URL, "heapdump") {
+				sev = "high"
+				title = "Spring Boot actuator exposed"
+				detail = fmt.Sprintf("Actuator endpoint at %s (HTTP %d) — may expose env, beans, heap dump", api.URL, api.StatusCode)
+			}
+		}
+		if sev == "info" {
+			continue // skip pure info-level discoveries from findings
+		}
+		findings = append(findings, models.Finding{
+			Asset:    api.Host,
+			Severity: sev,
+			Title:    title,
+			Detail:   detail,
+			FirstSeen: now,
+			New:       firstScan,
+		})
+	}
+
 	// ── Nuclei vulnerability findings ─────────────────────────────────────────
 	for _, v := range result.Vulnerabilities {
 		detail := fmt.Sprintf("Template: %s | URL: %s", v.TemplateID, v.URL)

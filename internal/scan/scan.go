@@ -586,6 +586,114 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		return result, ctx.Err()
 	}
 
+	// ── Step 16c: API Endpoint Discovery ──────────────────────────────────────
+	if cfg.HasModule("apidiscovery") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
+		log.Printf("[survex] discovering API endpoints (swagger, openapi, actuator, wsdl)")
+		result.APIEndpoints = tools.DiscoverAPIEndpoints(result.HTTP, timeout)
+		log.Printf("[survex]   api-discovery: %d endpoints found", len(result.APIEndpoints))
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
+	// ── Step 16d: GraphQL Introspection ───────────────────────────────────────
+	if cfg.HasModule("graphql") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
+		log.Printf("[survex] probing GraphQL endpoints (%d HTTP services)", len(result.HTTP))
+		result.GraphQL = tools.ProbeGraphQL(result.HTTP, timeout)
+		log.Printf("[survex]   graphql: %d endpoints found", len(result.GraphQL))
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
+	// ── Step 16e: Content Discovery (ffuf) ────────────────────────────────────
+	if cfg.HasModule("ffuf") && !cfg.Scan.Passive && len(result.HTTP) > 0 {
+		log.Printf("[survex] running content discovery with ffuf (%d HTTP services)", len(result.HTTP))
+		result.FFUFResults = tools.RunFFUF(result.HTTP, timeout)
+		log.Printf("[survex]   ffuf: %d paths discovered", len(result.FFUFResults))
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
+	// ── Step 16f: Open Redirect Testing ───────────────────────────────────────
+	if cfg.HasModule("openredirect") && !cfg.Scan.Passive {
+		// Collect all parametrized URLs from historical URLs + discovered paths
+		var allURLs []string
+		for _, hu := range result.HistoricalURLs {
+			allURLs = append(allURLs, hu.URL)
+		}
+		for _, fr := range result.FFUFResults {
+			allURLs = append(allURLs, fr.URL)
+		}
+		paramURLs := tools.ExtractParamURLs(allURLs)
+		if len(paramURLs) > 0 {
+			log.Printf("[survex] testing open redirects (%d parametrized URLs)", len(paramURLs))
+			result.OpenRedirects = tools.CheckOpenRedirects(paramURLs, timeout)
+			log.Printf("[survex]   open-redirect: %d confirmed", len(result.OpenRedirects))
+		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
+	// ── Step 16g: XSS Scanning (dalfox) ──────────────────────────────────────
+	if cfg.HasModule("dalfox") && !cfg.Scan.Passive {
+		var allURLs []string
+		for _, hu := range result.HistoricalURLs {
+			allURLs = append(allURLs, hu.URL)
+		}
+		for _, fr := range result.FFUFResults {
+			allURLs = append(allURLs, fr.URL)
+		}
+		paramURLs := tools.ExtractParamURLs(allURLs)
+		if len(paramURLs) > 0 {
+			log.Printf("[survex] running XSS scan with dalfox (%d parametrized URLs)", len(paramURLs))
+			// Generous timeout for dalfox: 5 min per 200 URLs
+			dalfoxTimeout := 300
+			if timeout > dalfoxTimeout {
+				dalfoxTimeout = timeout
+			}
+			result.XSSResults = tools.RunDalfox(paramURLs, dalfoxTimeout)
+			log.Printf("[survex]   dalfox: %d XSS findings", len(result.XSSResults))
+		} else {
+			log.Printf("[survex] dalfox: no parametrized URLs to test")
+		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
+	// ── Step 16h: SQL Injection Testing (sqlmap) ──────────────────────────────
+	if cfg.HasModule("sqlmap") && !cfg.Scan.Passive {
+		var allURLs []string
+		for _, hu := range result.HistoricalURLs {
+			allURLs = append(allURLs, hu.URL)
+		}
+		for _, fr := range result.FFUFResults {
+			allURLs = append(allURLs, fr.URL)
+		}
+		paramURLs := tools.ExtractParamURLs(allURLs)
+		if len(paramURLs) > 0 {
+			log.Printf("[survex] running SQLi scan with sqlmap (%d parametrized URLs)", len(paramURLs))
+			// sqlmap is slow — allow up to 10 min
+			sqlmapTimeout := 600
+			result.SQLiResults = tools.RunSQLMap(paramURLs, sqlmapTimeout)
+			log.Printf("[survex]   sqlmap: %d SQLi findings", len(result.SQLiResults))
+		} else {
+			log.Printf("[survex] sqlmap: no parametrized URLs to test")
+		}
+	}
+
+	if ctx.Err() != nil {
+		return result, ctx.Err()
+	}
+
 	// ── Step 17: Diff ──────────────────────────────────────────────────────────
 	prev, err := store.LoadLast(cfg.Client)
 	if err != nil {
@@ -770,6 +878,12 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 		"js_secrets.json":       result.JSSecrets,
 		"github_exposures.json": result.GitHubExposures,
 		"vulnerabilities.json":  result.Vulnerabilities,
+		"ffuf_results.json":     result.FFUFResults,
+		"xss_results.json":      result.XSSResults,
+		"sqli_results.json":     result.SQLiResults,
+		"open_redirects.json":   result.OpenRedirects,
+		"graphql.json":          result.GraphQL,
+		"api_endpoints.json":    result.APIEndpoints,
 		"findings.json":         result.Findings,
 		"diff.json":             result.Diff,
 		"summary.json": map[string]any{
@@ -798,6 +912,12 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 			"js_secret_count":       len(result.JSSecrets),
 			"github_exposure_count": len(result.GitHubExposures),
 			"vuln_count":            len(result.Vulnerabilities),
+			"ffuf_count":            len(result.FFUFResults),
+			"xss_count":             len(result.XSSResults),
+			"sqli_count":            len(result.SQLiResults),
+			"open_redirect_count":   len(result.OpenRedirects),
+			"graphql_count":         len(result.GraphQL),
+			"api_endpoint_count":    len(result.APIEndpoints),
 			"finding_count":    len(result.Findings),
 			"max_severity":     risk.MaxSeverity(result.Findings),
 		},

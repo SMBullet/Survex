@@ -177,6 +177,47 @@ var AllTools = []ToolDef{
 		Kind:        KindAPI,
 		Description: "GitHub code exposure search (hardcoded secrets, config files). Optional: --github-token",
 	},
+	{
+		Name:        "ffuf",
+		Binary:      "ffuf",
+		Kind:        KindGoTool,
+		Description: "Content/directory bruteforce (hidden endpoints, admin panels, backup files, API paths)",
+		GoInstall:   "github.com/ffuf/ffuf/v2/cmd/ffuf@latest",
+		VersionFlag: "-V",
+	},
+	{
+		Name:        "dalfox",
+		Binary:      "dalfox",
+		Kind:        KindGoTool,
+		Description: "Automated XSS scanner — tests discovered parametrized URLs",
+		GoInstall:   "github.com/hahwul/dalfox/v2@latest",
+		VersionFlag: "version",
+	},
+	{
+		Name:        "sqlmap",
+		Binary:      "sqlmap",
+		Kind:        KindSystem,
+		Description: "SQL injection testing (Python). Install: pip install sqlmap or apt install sqlmap",
+		AptPackage:  "sqlmap",
+		BrewFormula: "sqlmap",
+		WinChoco:    "sqlmap",
+		VersionFlag: "--version",
+	},
+	{
+		Name:        "openredirect",
+		Kind:        KindBuiltIn,
+		Description: "Open redirect parameter fuzzing (pure Go, tests 20+ redirect parameters)",
+	},
+	{
+		Name:        "graphql",
+		Kind:        KindBuiltIn,
+		Description: "GraphQL introspection probe — detects exposed GraphQL schemas",
+	},
+	{
+		Name:        "apidiscovery",
+		Kind:        KindBuiltIn,
+		Description: "API endpoint discovery — hunts Swagger/OpenAPI specs, actuator endpoints, WSDL",
+	},
 }
 
 // ─── Status Checking ───────────────────────────────────────────────────────────

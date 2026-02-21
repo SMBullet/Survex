@@ -238,6 +238,65 @@ type Diff struct {
 	TLSChanges        []string  `json:"tls_changes"`
 }
 
+// ── Active Vulnerability Testing ──────────────────────────────────────────
+
+// FFUFResult holds a single content-discovery hit from ffuf.
+type FFUFResult struct {
+	Host        string `json:"host"`
+	URL         string `json:"url"`
+	StatusCode  int    `json:"status_code"`
+	ContentLen  int    `json:"content_length"`
+	Words       int    `json:"words"`
+	Lines       int    `json:"lines"`
+	ResultType  string `json:"result_type"` // file | directory | api | admin | backup
+}
+
+// XSSResult holds a confirmed XSS finding from dalfox.
+type XSSResult struct {
+	URL      string `json:"url"`
+	Host     string `json:"host"`
+	Payload  string `json:"payload"`
+	POC      string `json:"poc,omitempty"`   // proof-of-concept URL
+	Type     string `json:"type"`            // reflected | dom | stored
+	Severity string `json:"severity"`        // medium | high
+}
+
+// SQLiResult holds a confirmed SQL injection finding from sqlmap.
+type SQLiResult struct {
+	URL       string `json:"url"`
+	Host      string `json:"host"`
+	Parameter string `json:"parameter"`
+	Technique string `json:"technique"` // boolean-based blind | time-based blind | UNION query | error-based | stacked
+	DBType    string `json:"db_type,omitempty"`
+	Detail    string `json:"detail,omitempty"`
+}
+
+// OpenRedirectResult holds a confirmed open redirect finding.
+type OpenRedirectResult struct {
+	URL        string `json:"url"`
+	Host       string `json:"host"`
+	Parameter  string `json:"parameter"`
+	Payload    string `json:"payload"`
+	RedirectsTo string `json:"redirects_to"`
+}
+
+// GraphQLResult holds the outcome of a GraphQL introspection probe.
+type GraphQLResult struct {
+	Host                 string   `json:"host"`
+	URL                  string   `json:"url"`
+	IntrospectionEnabled bool     `json:"introspection_enabled"`
+	Types                []string `json:"types,omitempty"`  // top-level type names from schema
+	SchemaSize           int      `json:"schema_size,omitempty"`
+}
+
+// APIEndpoint holds a discovered API or documentation endpoint.
+type APIEndpoint struct {
+	Host       string `json:"host"`
+	URL        string `json:"url"`
+	Type       string `json:"type"`        // swagger | openapi | graphql | wsdl | wadl | rest | admin
+	StatusCode int    `json:"status_code"`
+}
+
 // ── Aggregated scan result ─────────────────────────────────────────────────
 
 type ScanResult struct {
@@ -258,9 +317,16 @@ type ScanResult struct {
 	EmailSecurity   []EmailSecurityResult `json:"email_security,omitempty"`
 	Takeovers       []TakeoverResult      `json:"takeovers,omitempty"`
 	ZoneTransfers   []ZoneTransferResult  `json:"zone_transfers,omitempty"`
-	JSSecrets       []JSSecret            `json:"js_secrets,omitempty"`
-	GitHubExposures []GitHubExposure      `json:"github_exposures,omitempty"`
-	Vulnerabilities []Vulnerability       `json:"vulnerabilities,omitempty"`
-	Findings        []Finding             `json:"findings"`
-	Diff            *Diff                 `json:"diff,omitempty"`
+	JSSecrets        []JSSecret            `json:"js_secrets,omitempty"`
+	GitHubExposures  []GitHubExposure      `json:"github_exposures,omitempty"`
+	Vulnerabilities  []Vulnerability       `json:"vulnerabilities,omitempty"`
+	// Active pentest results
+	FFUFResults      []FFUFResult          `json:"ffuf_results,omitempty"`
+	XSSResults       []XSSResult           `json:"xss_results,omitempty"`
+	SQLiResults      []SQLiResult          `json:"sqli_results,omitempty"`
+	OpenRedirects    []OpenRedirectResult  `json:"open_redirects,omitempty"`
+	GraphQL          []GraphQLResult       `json:"graphql,omitempty"`
+	APIEndpoints     []APIEndpoint         `json:"api_endpoints,omitempty"`
+	Findings         []Finding             `json:"findings"`
+	Diff             *Diff                 `json:"diff,omitempty"`
 }

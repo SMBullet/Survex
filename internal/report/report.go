@@ -271,6 +271,12 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="card"><div class="card-value">{{len .Result.ZoneTransfers}}</div><div class="card-label">AXFR Success</div></div>
     <div class="card"><div class="card-value">{{len .Findings}}</div><div class="card-label">Total Findings</div></div>
     <div class="card"><div class="card-value">{{len .Result.Screenshots}}</div><div class="card-label">Screenshots</div></div>
+    <div class="card"><div class="card-value">{{len .Result.FFUFResults}}</div><div class="card-label">Paths Found</div></div>
+    <div class="card"><div class="card-value">{{len .Result.XSSResults}}</div><div class="card-label">XSS Confirmed</div></div>
+    <div class="card"><div class="card-value">{{len .Result.SQLiResults}}</div><div class="card-label">SQLi Confirmed</div></div>
+    <div class="card"><div class="card-value">{{len .Result.OpenRedirects}}</div><div class="card-label">Open Redirects</div></div>
+    <div class="card"><div class="card-value">{{len .Result.APIEndpoints}}</div><div class="card-label">API Endpoints</div></div>
+    <div class="card"><div class="card-value">{{len .Result.GraphQL}}</div><div class="card-label">GraphQL</div></div>
   </div>
 
   <!-- Findings -->
@@ -567,6 +573,128 @@ const htmlTemplate = `<!DOCTYPE html>
         <td><a href="{{.RepoURL}}" target="_blank">{{.Repository}}</a></td>
         <td><a href="{{.FileURL}}" target="_blank" class="mono finding-detail">{{.FileName}}</a></td>
         <td class="finding-detail">{{.Query}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- API Endpoints -->
+  {{if .Result.APIEndpoints}}
+  <div class="section">
+    <h2>API Endpoints Discovered ({{len .Result.APIEndpoints}})</h2>
+    <table>
+      <thead><tr><th>Host</th><th>Type</th><th>URL</th><th>Status</th></tr></thead>
+      <tbody>
+      {{range .Result.APIEndpoints}}
+      <tr>
+        <td class="mono">{{.Host}}</td>
+        <td><span class="badge badge-medium">{{.Type}}</span></td>
+        <td class="mono"><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
+        <td class="mono">{{.StatusCode}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- GraphQL -->
+  {{if .Result.GraphQL}}
+  <div class="section">
+    <h2>GraphQL Endpoints ({{len .Result.GraphQL}})</h2>
+    <table>
+      <thead><tr><th>Host</th><th>URL</th><th>Introspection</th><th>Types Exposed</th></tr></thead>
+      <tbody>
+      {{range .Result.GraphQL}}
+      <tr>
+        <td class="mono">{{.Host}}</td>
+        <td class="mono"><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
+        <td>{{if .IntrospectionEnabled}}{{severityBadge "high"}} ENABLED{{else}}<span class="badge badge-info">Disabled</span>{{end}}</td>
+        <td class="finding-detail">{{join ", " .Types}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- Content Discovery (ffuf) -->
+  {{if .Result.FFUFResults}}
+  <div class="section">
+    <h2>Content Discovery — {{len .Result.FFUFResults}} paths found</h2>
+    <table>
+      <thead><tr><th>Type</th><th>URL</th><th>Status</th><th>Size</th></tr></thead>
+      <tbody>
+      {{range .Result.FFUFResults}}
+      <tr>
+        <td>{{.ResultType}}</td>
+        <td class="mono"><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
+        <td class="mono">{{.StatusCode}}</td>
+        <td class="mono finding-detail">{{.ContentLen}} bytes</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- XSS Results (dalfox) -->
+  {{if .Result.XSSResults}}
+  <div class="section">
+    <h2 style="color:#dc2626">Cross-Site Scripting — {{len .Result.XSSResults}} confirmed</h2>
+    <table>
+      <thead><tr><th>Severity</th><th>Host</th><th>Type</th><th>URL</th><th>Payload</th></tr></thead>
+      <tbody>
+      {{range .Result.XSSResults}}
+      <tr>
+        <td>{{severityBadge .Severity}}</td>
+        <td class="mono">{{.Host}}</td>
+        <td>{{.Type}}</td>
+        <td class="mono"><a href="{{.POC}}" target="_blank">{{.URL}}</a></td>
+        <td class="mono finding-detail" style="word-break:break-all">{{.Payload}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- SQLi Results (sqlmap) -->
+  {{if .Result.SQLiResults}}
+  <div class="section">
+    <h2 style="color:#7c3aed">SQL Injection — {{len .Result.SQLiResults}} confirmed</h2>
+    <table>
+      <thead><tr><th>Host</th><th>URL</th><th>Parameter</th><th>Technique</th><th>DB</th></tr></thead>
+      <tbody>
+      {{range .Result.SQLiResults}}
+      <tr>
+        <td class="mono">{{.Host}}</td>
+        <td class="mono finding-detail"><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
+        <td class="mono">{{.Parameter}}</td>
+        <td class="finding-detail">{{.Technique}}</td>
+        <td class="finding-detail">{{.DBType}}</td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  <!-- Open Redirects -->
+  {{if .Result.OpenRedirects}}
+  <div class="section">
+    <h2>Open Redirects ({{len .Result.OpenRedirects}})</h2>
+    <table>
+      <thead><tr><th>Host</th><th>Parameter</th><th>Redirects To</th><th>URL</th></tr></thead>
+      <tbody>
+      {{range .Result.OpenRedirects}}
+      <tr>
+        <td class="mono">{{.Host}}</td>
+        <td class="mono">{{.Parameter}}</td>
+        <td class="mono finding-detail">{{.RedirectsTo}}</td>
+        <td class="mono finding-detail"><a href="{{.URL}}" target="_blank">{{.URL}}</a></td>
       </tr>
       {{end}}
       </tbody>
