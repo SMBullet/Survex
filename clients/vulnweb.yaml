@@ -1,17 +1,14 @@
-# Test config — testphp.vulnweb.com is Acunetix's intentionally vulnerable test application.
+# Test config — Acunetix's intentionally vulnerable test application.
 # Explicitly authorized for security scanner testing.
 # https://www.acunetix.com/vulnerability-scanner/php-test-site/
 
 client: vulnweb
-target: vulnweb.com
 
-scan:
-  subdomains: true
-  dns: true
-  ports: true
-  http: true
-  nuclei: true      # requires: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-  screenshot: false
+targets:
+  - vulnweb.com
+
+modules:
+  - all
 
 output:
   dir: reports/vulnweb
@@ -19,4 +16,4 @@ output:
   keep_history: true
 
 alerts:
-  fail_on: ""   # empty = never exit 1, just report
+  fail_on: ""

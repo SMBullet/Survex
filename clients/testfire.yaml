@@ -1,17 +1,14 @@
-# Test config — demo.testfire.net is IBM's Altoro Mutual demo banking application.
+# Test config — IBM Altoro Mutual demo banking application.
 # Explicitly authorized for security scanner and penetration testing.
 # https://demo.testfire.net/
 
 client: testfire
-target: testfire.net
 
-scan:
-  subdomains: true
-  dns: true
-  ports: true
-  http: true
-  nuclei: true      # requires: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-  screenshot: false
+targets:
+  - testfire.net
+
+modules:
+  - all
 
 output:
   dir: reports/testfire
@@ -19,4 +16,4 @@ output:
   keep_history: true
 
 alerts:
-  fail_on: ""   # empty = never exit 1, just report
+  fail_on: ""

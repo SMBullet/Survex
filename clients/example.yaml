@@ -1,20 +1,120 @@
-# Example client config file.
-# Copy this file, rename it for your client, and fill in the details.
+# ──────────────────────────────────────────────────────────────────────────────
+# Survex Client Config — copy and rename for each engagement.
+# All settings can be overridden at runtime with CLI flags.
+# Run 'survex modules' to see installation status of external tools.
+# ──────────────────────────────────────────────────────────────────────────────
 
-client: example
-target: example.com
+client: example-corp
 
+# Targets: domains, bare IPs, CIDR ranges (max /16), or .txt file paths.
+targets:
+  - example.com            # domain → full enumeration (subfinder, crts, amass, dns)
+  # - app.example.com     # single subdomain → use scan.no_subs: true to skip enum
+  # - 10.0.0.1            # bare IP → domain-only modules (subfinder, crts) are skipped
+  # - 192.168.1.0/24      # CIDR (max /16) → expanded to individual IPs
+  # - hosts.txt           # file → loaded line-by-line, comments (#) ignored
+
+# Modules to run. Use "all" or list specific ones:
+#   subfinder  amass  crts  dns  nmap  httpx  tls  waf
+#   headers  cors  cookies  s3  gau  katana  screenshot  nuclei  shodan
+modules:
+  - all
+
+# ── Scan behavior ──────────────────────────────────────────────────────────────
 scan:
-  subdomains: true
-  dns: true
-  ports: true
-  http: true
-  screenshot: false   # requires chromium installed
+  # no_subs: skip all subdomain enumeration (subfinder, amass, crts, tls-san).
+  # Use this to scan a specific host list without discovery.
+  # CLI: --no-subs
+  no_subs: false
 
+  # passive: only passive recon (crts, dns, shodan). No active port/HTTP/vuln scanning.
+  # CLI: --passive
+  passive: false
+
+  # ports: port profile for nmap.
+  #   top-100   → 100 most common ports (fast)
+  #   top-1000  → 1000 most common ports (default)
+  #   full      → all 65535 ports (slow)
+  #   web       → common web ports (80,443,8080,8443,8000,8888,3000,4000,5000,9000,9090,9443)
+  #   db        → database ports (3306,5432,27017,6379,1433,1521,9200,11211,...)
+  #   stealth   → top-100 with slow timing (-T2)
+  #   "80,443"  → custom comma-separated list
+  # CLI: --ports
+  ports: top-1000
+
+  # profile: predefined module set (used when modules is not specified).
+  #   quick    → crts, dns, httpx, tls, headers (fast passive+HTTP)
+  #   web      → subfinder, crts, amass, dns, httpx, tls, waf, headers, cors, cookies, nuclei
+  #   full     → all modules
+  #   passive  → crts, dns, shodan (zero active probing)
+  #   stealth  → crts, dns, httpx, tls, waf (minimal footprint)
+  #   cloud    → subfinder, crts, dns, httpx, s3, nuclei
+  # CLI: --profile
+  profile: ""
+
+  # rate: max requests per second across all HTTP operations (default: 150)
+  # CLI: --rate
+  rate: 150
+
+  # threads: concurrency for HTTP probing (default: 50)
+  # CLI: --threads
+  threads: 50
+
+  # timeout: per-request timeout in seconds (default: 10)
+  # CLI: --timeout
+  timeout: 10
+
+  # proxy: route all HTTP requests through a proxy.
+  # Example: http://127.0.0.1:8080  or  socks5://127.0.0.1:1080
+  # CLI: --proxy
+  proxy: ""
+
+# ── Nuclei vulnerability scanner ───────────────────────────────────────────────
+nuclei:
+  # severity: comma-separated severity levels to include.
+  # "info" is required for takeover and panel detection templates.
+  # CLI: --nuclei-severity
+  severity: "critical,high,medium,info"
+
+  # tags: only run templates with these tags (leave empty for all).
+  # Example: [cve, rce, sqli, ssrf]
+  # CLI: --nuclei-tags
+  tags: []
+
+  # exclude_tags: skip templates with these tags.
+  # CLI: --nuclei-exclude
+  exclude_tags:
+    - dos
+    - fuzz
+    - generic-tokens
+    - tls-sni-proxy
+
+  # templates: additional template directories beyond the built-in ASM set.
+  # CLI: --nuclei-templates
+  templates: []
+
+  # update_before_scan: run nuclei -update-templates before scanning.
+  # CLI: --update-templates
+  update_before_scan: false
+
+# ── Shodan passive enrichment ──────────────────────────────────────────────────
+shodan:
+  # api_key: your Shodan API key. Get one at https://account.shodan.io/
+  # CLI: --shodan-key
+  api_key: ""
+
+  # enabled: set to true along with api_key to enable Shodan lookups.
+  enabled: false
+
+# ── Output ─────────────────────────────────────────────────────────────────────
 output:
-  dir: reports/example
-  format: json        # json | markdown | html
+  dir: reports/example-corp
+  format: json
   keep_history: true
 
+# ── Alerting (CI/CD) ───────────────────────────────────────────────────────────
 alerts:
-  fail_on: high       # exit 1 if new findings at this severity or above
+  # fail_on: exit code 1 if findings at or above this severity are found.
+  # Options: low | medium | high | critical
+  # CLI: --fail-on
+  fail_on: high

@@ -4,15 +4,12 @@
 # Do NOT scan out-of-scope assets.
 
 client: tesla
-target: tesla.com
 
-scan:
-  subdomains: true
-  dns: true
-  ports: true
-  http: true
-  nuclei: true
-  screenshot: false
+targets:
+  - tesla.com
+
+modules:
+  - all
 
 output:
   dir: reports/tesla

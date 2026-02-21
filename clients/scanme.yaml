@@ -2,15 +2,12 @@
 # https://nmap.org/book/legal-issues.html
 
 client: scanme
-target: scanme.nmap.org
 
-scan:
-  subdomains: true
-  dns: true
-  ports: true
-  http: true
-  nuclei: true      # requires: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-  screenshot: false
+targets:
+  - scanme.nmap.org
+
+modules:
+  - all
 
 output:
   dir: reports/scanme
@@ -18,4 +15,4 @@ output:
   keep_history: true
 
 alerts:
-  fail_on: ""   # empty = never exit 1, just report
+  fail_on: ""
