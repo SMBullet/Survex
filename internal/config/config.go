@@ -8,12 +8,13 @@ import (
 )
 
 type ScanOptions struct {
-	Subdomains bool `yaml:"subdomains"`
-	DNS        bool `yaml:"dns"`
-	Ports      bool `yaml:"ports"`
-	HTTP       bool `yaml:"http"`
-	Nuclei     bool `yaml:"nuclei"`
-	Screenshot bool `yaml:"screenshot"`
+	Targets    []string `yaml:"targets"`    // explicit host list — skips enumeration when set
+	Subdomains bool     `yaml:"subdomains"`
+	DNS        bool     `yaml:"dns"`
+	Ports      bool     `yaml:"ports"`
+	HTTP       bool     `yaml:"http"`
+	Nuclei     bool     `yaml:"nuclei"`
+	Screenshot bool     `yaml:"screenshot"`
 }
 
 type OutputOptions struct {

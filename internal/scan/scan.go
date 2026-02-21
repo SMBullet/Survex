@@ -36,7 +36,17 @@ func Run(cfg *config.Config) (*models.ScanResult, error) {
 	log.Printf("[survex] scan started: %s (id: %s)", cfg.Target, scanID)
 
 	// ── Step 1: Subdomain Enumeration ─────────────────────────────────────────
-	if cfg.Scan.Subdomains {
+	if len(cfg.Scan.Targets) > 0 {
+		// Explicit target list — skip all enumeration, use exactly what was specified.
+		log.Printf("[survex] using %d explicit targets (skipping enumeration)", len(cfg.Scan.Targets))
+		for _, host := range cfg.Scan.Targets {
+			result.Subdomains = append(result.Subdomains, models.Subdomain{
+				Name:      host,
+				IPAddress: tools.ResolveIP(host),
+				Sources:   []string{"config"},
+			})
+		}
+	} else if cfg.Scan.Subdomains {
 		log.Printf("[survex] enumerating subdomains")
 		hostSources := make(map[string][]string)
 

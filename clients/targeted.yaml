@@ -1,0 +1,26 @@
+# Targeted scan — bypasses all subdomain enumeration.
+# List the exact hosts you want to scan under scan.targets.
+# Useful for quick tests or scanning specific subdomains of a known target.
+
+client: targeted
+target: testphp.vulnweb.com   # used for reporting/diff only, not for enumeration
+
+scan:
+  targets:
+    - testphp.vulnweb.com
+    - testhtml5.vulnweb.com
+
+  subdomains: false  # ignored when targets is set
+  dns: true
+  ports: true
+  http: true
+  nuclei: true
+  screenshot: false
+
+output:
+  dir: reports/targeted
+  format: json
+  keep_history: false   # fresh result each time, no diff
+
+alerts:
+  fail_on: ""

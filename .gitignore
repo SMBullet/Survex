@@ -52,6 +52,7 @@ Thumbs.db
 !/clients/vulnweb.yaml
 !/clients/testfire.yaml
 !/clients/tesla.yaml
+!/clients/targeted.yaml
 /tmp/
 /output/
 /screenshots/
