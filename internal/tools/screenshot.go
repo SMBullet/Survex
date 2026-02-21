@@ -18,8 +18,9 @@ import (
 // Install: go install github.com/sensepost/gowitness@latest
 // Requires: Google Chrome or Chromium to be installed.
 func RunScreenshots(httpServices []models.HTTPService, scanDir string, timeoutSecs int) ([]models.Screenshot, error) {
-	if _, err := exec.LookPath("gowitness"); err != nil {
-		log.Printf("[survex]   gowitness: not found in PATH — skipping (install: go install github.com/sensepost/gowitness@latest)")
+	gowitnessPath, err := FindBinary("gowitness", "go install github.com/sensepost/gowitness@latest")
+	if err != nil {
+		log.Printf("[survex]   gowitness: not found in ~/go/bin or PATH — skipping (install: go install github.com/sensepost/gowitness@latest)")
 		return nil, nil
 	}
 	if len(httpServices) == 0 {
@@ -49,7 +50,7 @@ func RunScreenshots(httpServices []models.HTTPService, scanDir string, timeoutSe
 
 	dbPath := filepath.Join(screenshotDir, "gowitness.sqlite3")
 
-	cmd := exec.Command("gowitness", "scan", "file",
+	cmd := exec.Command(gowitnessPath, "scan", "file",
 		"-f", tmpIn.Name(),
 		"--screenshot-path", screenshotDir,
 		"--db-location", dbPath,

@@ -22,8 +22,9 @@ type amassOutput struct {
 //
 // Install: go install -v github.com/owasp-amass/amass/v4/...@master
 func RunAmass(domain string) ([]string, error) {
-	if _, err := exec.LookPath("amass"); err != nil {
-		log.Printf("[survex]   amass: not found in PATH — skipping (install: go install github.com/owasp-amass/amass/v4/...@master)")
+	amassPath, err := FindBinary("amass", "go install github.com/owasp-amass/amass/v4/...@master")
+	if err != nil {
+		log.Printf("[survex]   amass: not found in ~/go/bin or PATH — skipping (install: go install github.com/owasp-amass/amass/v4/...@master)")
 		return nil, nil
 	}
 
@@ -36,7 +37,7 @@ func RunAmass(domain string) ([]string, error) {
 	defer os.Remove(tmpOutName)
 
 	// amass enum -passive: uses only OSINT/DNS sources, no brute-force
-	cmd := exec.Command("amass", "enum",
+	cmd := exec.Command(amassPath, "enum",
 		"-passive",
 		"-d", domain,
 		"-json", tmpOutName,

@@ -15,11 +15,12 @@ type subfindResult struct {
 // RunSubfinder runs subfinder against the given domain and returns a deduplicated
 // list of discovered subdomains.
 func RunSubfinder(domain string) ([]string, error) {
-	if _, err := exec.LookPath("subfinder"); err != nil {
-		return nil, fmt.Errorf("subfinder not found in PATH: install with: go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
+	subfinderPath, err := FindBinary("subfinder", "go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
+	if err != nil {
+		return nil, fmt.Errorf("subfinder not found in ~/go/bin or PATH — install with: go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
 	}
 
-	cmd := exec.Command("subfinder", "-d", domain, "-json", "-silent")
+	cmd := exec.Command(subfinderPath, "-d", domain, "-json", "-silent")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

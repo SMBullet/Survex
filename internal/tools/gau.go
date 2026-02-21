@@ -17,14 +17,15 @@ import (
 //
 // Install: go install github.com/lc/gau/v2/cmd/gau@latest
 func RunGAU(domain string) ([]models.HistoricalURL, error) {
-	if _, err := exec.LookPath("gau"); err != nil {
-		log.Printf("[survex]   gau: not found in PATH — skipping (install: go install github.com/lc/gau/v2/cmd/gau@latest)")
+	gauPath, err := FindBinary("gau", "go install github.com/lc/gau/v2/cmd/gau@latest")
+	if err != nil {
+		log.Printf("[survex]   gau: not found in ~/go/bin or PATH — skipping (install: go install github.com/lc/gau/v2/cmd/gau@latest)")
 		return nil, nil
 	}
 
 	// --subs includes subdomains, --threads 5 limits concurrency,
 	// --blacklist filters out noisy file extensions
-	cmd := exec.Command("gau",
+	cmd := exec.Command(gauPath,
 		domain,
 		"--subs",
 		"--threads", "5",

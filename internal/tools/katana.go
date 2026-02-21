@@ -27,8 +27,9 @@ type katanaOutput struct {
 //
 // Install: go install github.com/projectdiscovery/katana/cmd/katana@latest
 func RunKatana(urls []string, timeoutSecs int) ([]models.HistoricalURL, error) {
-	if _, err := exec.LookPath("katana"); err != nil {
-		log.Printf("[survex]   katana: not found in PATH — skipping (install: go install github.com/projectdiscovery/katana/cmd/katana@latest)")
+	katanaPath, err := FindBinary("katana", "go install github.com/projectdiscovery/katana/cmd/katana@latest")
+	if err != nil {
+		log.Printf("[survex]   katana: not found in ~/go/bin or PATH — skipping (install: go install github.com/projectdiscovery/katana/cmd/katana@latest)")
 		return nil, nil
 	}
 	if len(urls) == 0 {
@@ -57,7 +58,7 @@ func RunKatana(urls []string, timeoutSecs int) ([]models.HistoricalURL, error) {
 	// -jc: JavaScript crawling    -js-crawl: extract URLs from JS files
 	// -d 2: max depth 2           -aff: automatically follow subdomains
 	// -silent: no banner          -timeout: per-request timeout
-	cmd := exec.Command("katana",
+	cmd := exec.Command(katanaPath,
 		"-list", tmpIn.Name(),
 		"-jc",
 		"-js-crawl",

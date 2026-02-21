@@ -407,6 +407,21 @@ func execGoInstall(def ToolDef, logFn func(string)) error {
 	return nil
 }
 
+// FindBinary locates a named binary by checking ~/go/bin and $GOPATH/bin
+// before falling back to PATH. This ensures Go-installed tools are found
+// even when ~/go/bin is not yet in the shell's PATH.
+// Returns the full path or an error with install instructions.
+func FindBinary(name, installCmd string) (string, error) {
+	for _, p := range gatherCandidatePaths(name) {
+		return p, nil
+	}
+	hint := ""
+	if installCmd != "" {
+		hint = "\n  Install with: " + installCmd
+	}
+	return "", fmt.Errorf("%s not found in ~/go/bin or PATH%s", name, hint)
+}
+
 // gatherCandidatePaths returns filesystem paths to consider for a binary,
 // with Go install dirs listed before system paths like /usr/bin.
 // This ensures the PD version is preferred over any same-named system package.
