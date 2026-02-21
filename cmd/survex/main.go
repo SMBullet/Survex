@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"text/tabwriter"
 
@@ -89,6 +88,24 @@ var updateCmd = &cobra.Command{
 	RunE:  runUpdate,
 }
 
+var installCmd = &cobra.Command{
+	Use:   "install [tool...]",
+	Short: "Install and verify all external tools required by Survex",
+	Long: `Install and verify all external tools required by Survex.
+
+Go tools (subfinder, httpx, nuclei, katana, etc.) are installed automatically
+via 'go install'. System tools (nmap) must be installed via your package manager.
+Conflicts — such as Kali Linux's Python httpx shadowing the Go version — are
+detected and resolved automatically.
+
+Examples:
+  survex install                    # Install all missing Go tools + fix PATH
+  survex install nuclei httpx       # Install specific tools only
+  survex install --check            # Only check status, do not install anything
+  survex install --fix-path         # Only add ~/go/bin to shell config files`,
+	RunE: runInstall,
+}
+
 // ── Flag variables ─────────────────────────────────────────────────────────────
 
 var (
@@ -125,6 +142,10 @@ var (
 
 	// update subcommand
 	flagUpdateAll bool
+
+	// install subcommand
+	flagInstallCheck   bool
+	flagInstallFixPath bool
 )
 
 func init() {
@@ -171,7 +192,11 @@ func init() {
 	updateCmd.Flags().BoolVar(&flagUpdateAll, "all", false, "Update all supported tools (currently nuclei templates)")
 	updateCmd.Flags().Bool("nuclei", false, "Update nuclei templates")
 
-	rootCmd.AddCommand(scanCmd, diffCmd, reportCmd, historyCmd, modulesCmd, updateCmd)
+	// ── install flags ─────────────────────────────────────────────────────
+	installCmd.Flags().BoolVar(&flagInstallCheck, "check", false, "Only verify status — do not install anything")
+	installCmd.Flags().BoolVar(&flagInstallFixPath, "fix-path", false, "Add ~/go/bin to shell config files without installing tools")
+
+	rootCmd.AddCommand(scanCmd, diffCmd, reportCmd, historyCmd, modulesCmd, updateCmd, installCmd)
 }
 
 // ── Config resolution ─────────────────────────────────────────────────────────
@@ -447,56 +472,73 @@ func runHistory(cmd *cobra.Command, args []string) error {
 }
 
 func runModules(cmd *cobra.Command, args []string) error {
-	type moduleInfo struct {
-		name        string
-		kind        string // built-in | external | api
-		description string
-		binary      string // executable name to check, or ""
-		installCmd  string
-	}
-
-	modules := []moduleInfo{
-		{"subfinder", "external", "Subdomain enumeration via OSINT sources", "subfinder", "go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"},
-		{"amass", "external", "Subdomain enumeration via OSINT (more sources)", "amass", "go install github.com/owasp-amass/amass/v4/...@master"},
-		{"crts", "built-in", "Certificate transparency (crt.sh lookup)", "", ""},
-		{"dns", "built-in", "DNS resolution (A, CNAME, MX, TXT records)", "", ""},
-		{"nmap", "external", "Port scanning and service detection", "nmap", "apt install nmap  /  choco install nmap"},
-		{"httpx", "external", "HTTP/S probing, title, tech stack detection", "httpx", "go install github.com/projectdiscovery/httpx/cmd/httpx@latest"},
-		{"tls", "built-in", "TLS certificate analysis (expiry, version, SANs)", "", ""},
-		{"waf", "built-in", "WAF fingerprinting (Cloudflare, Akamai, AWS, etc.)", "", ""},
-		{"headers", "built-in", "HTTP security headers audit (HSTS, CSP, X-Frame, etc.)", "", ""},
-		{"cors", "built-in", "CORS misconfiguration testing (origin reflection, wildcard)", "", ""},
-		{"cookies", "built-in", "Cookie security (Secure, HttpOnly, SameSite flags)", "", ""},
-		{"s3", "built-in", "Cloud storage bucket exposure (AWS, GCS, Azure)", "", ""},
-		{"gau", "external", "Historical URL discovery from Wayback Machine", "gau", "go install github.com/lc/gau/v2/cmd/gau@latest"},
-		{"katana", "external", "JS-aware web crawler for endpoint discovery", "katana", "go install github.com/projectdiscovery/katana/cmd/katana@latest"},
-		{"screenshot", "external", "Visual recon — screenshots via gowitness", "gowitness", "go install github.com/sensepost/gowitness@latest"},
-		{"nuclei", "external", "Vulnerability scanning (CVEs, misconfigs, exposures)", "nuclei", "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"},
-		{"shodan", "api", "Passive host enrichment via Shodan API (needs API key)", "", "Set SHODAN_API_KEY or use --shodan-key"},
+	kindName := map[tools.ToolKind]string{
+		tools.KindGoTool:  "go-tool",
+		tools.KindSystem:  "system",
+		tools.KindBuiltIn: "built-in",
+		tools.KindAPI:     "api",
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "MODULE\tTYPE\tSTATUS\tDESCRIPTION")
-	for _, m := range modules {
-		status := "ready"
-		if m.kind == "external" && m.binary != "" {
-			if _, err := exec.LookPath(m.binary); err != nil {
-				status = "not installed"
+
+	var issues []tools.ToolStatus
+	for _, def := range tools.AllTools {
+		st := tools.CheckStatus(def)
+
+		statusStr := func() string {
+			switch st.State {
+			case "ok":
+				// Show version if available, otherwise just "installed"
+				if st.Version != "" {
+					return "installed (" + st.Version + ")"
+				}
+				return "installed"
+			case "conflict":
+				return "CONFLICT"
+			case "missing":
+				return "not installed"
+			case "needs-key":
+				return "needs API key"
+			case "built-in":
+				return "ready"
 			}
-		} else if m.kind == "api" {
-			status = "needs API key"
+			return st.State
+		}()
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", def.Name, kindName[def.Kind], statusStr, def.Description)
+
+		if st.State == "missing" || st.State == "conflict" {
+			issues = append(issues, st)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", m.name, m.kind, status, m.description)
 	}
 	w.Flush()
 
-	fmt.Println("\nInstall commands for missing external tools:")
-	for _, m := range modules {
-		if m.kind == "external" && m.binary != "" && m.installCmd != "" {
-			if _, err := exec.LookPath(m.binary); err != nil {
-				fmt.Printf("  %-12s %s\n", m.name+":", m.installCmd)
+	if len(issues) == 0 {
+		fmt.Println("\nAll tools installed. Run 'survex install --check' to re-verify.")
+		return nil
+	}
+
+	fmt.Println()
+	hasConflicts := false
+	for _, st := range issues {
+		if st.State == "conflict" {
+			hasConflicts = true
+			fmt.Printf("  [CONFLICT] %s\n", st.Conflict)
+			if st.Def.Kind == tools.KindGoTool {
+				fmt.Printf("             Fix: go install %s\n", st.Def.GoInstall)
+				fmt.Printf("             Then ensure ~/go/bin appears before /usr/bin in PATH.\n")
 			}
+		} else {
+			fmt.Printf("  %-12s %s\n", st.Def.Name+":", st.InstallHint)
 		}
+	}
+
+	fmt.Println()
+	if hasConflicts {
+		fmt.Println("Run 'survex install' to auto-install PD versions and fix PATH conflicts.")
+	} else {
+		fmt.Println("Run 'survex install' to auto-install all missing Go tools.")
 	}
 
 	return nil
@@ -518,6 +560,112 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		} else {
 			fmt.Println("done.")
 		}
+	}
+
+	return nil
+}
+
+func runInstall(cmd *cobra.Command, args []string) error {
+	// args = optional list of specific tool names to target
+	filter := args
+
+	// ── PATH fix ───────────────────────────────────────────────────────────────
+	// Always run EnsureGoPath so installed tools are findable within this session.
+	if !flagInstallCheck {
+		modified, err := tools.EnsureGoPath()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not update shell PATH: %v\n", err)
+		} else if len(modified) > 0 {
+			fmt.Println("[+] Added ~/go/bin to PATH in:")
+			for _, f := range modified {
+				fmt.Printf("    %s\n", f)
+			}
+			fmt.Println("    Run 'source ~/.bashrc' (or open a new terminal) to apply.")
+		} else {
+			fmt.Println("[✓] ~/go/bin already present in your shell PATH config.")
+		}
+		fmt.Println()
+	}
+
+	if flagInstallFixPath {
+		return nil
+	}
+
+	// ── Install / verify ───────────────────────────────────────────────────────
+	doInstall := !flagInstallCheck
+	results := tools.RunInstall(filter, doInstall, func(msg string) {
+		fmt.Println(msg)
+	})
+
+	// Print results table.
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, "TOOL\tSTATUS\tDETAIL")
+
+	actionIcon := map[string]string{
+		"ok":        "[✓]",
+		"installed": "[+]",
+		"built-in":  "[✓]",
+		"needs-key": "[-]",
+		"missing":   "[!]",
+		"conflict":  "[✗]",
+		"failed":    "[✗]",
+	}
+
+	var missing, failed, conflicts int
+	for _, r := range results {
+		icon := actionIcon[r.Action]
+		if icon == "" {
+			icon = "[ ]"
+		}
+		fmt.Fprintf(w, "%s %-12s\t%s\t%s\n", icon, r.Tool, r.Action, r.Message)
+		switch r.Action {
+		case "missing":
+			missing++
+		case "failed":
+			failed++
+		case "conflict":
+			conflicts++
+		}
+	}
+	w.Flush()
+
+	// ── Summary ────────────────────────────────────────────────────────────────
+	fmt.Println()
+	if failed > 0 {
+		fmt.Printf("[✗] %d tool(s) failed to install — check the output above.\n", failed)
+	}
+	if conflicts > 0 {
+		fmt.Printf("[✗] %d naming conflict(s) — ensure ~/go/bin is before /usr/bin in PATH.\n", conflicts)
+		fmt.Println("    Run: survex install --fix-path")
+	}
+	if missing > 0 && !doInstall {
+		fmt.Printf("[!] %d tool(s) not yet installed.\n", missing)
+		fmt.Println("    Run 'survex install' (without --check) to install them automatically.")
+	}
+	if missing == 0 && failed == 0 && conflicts == 0 {
+		if doInstall {
+			fmt.Println("[✓] All tools ready.")
+		} else {
+			fmt.Println("[✓] All tools verified.")
+		}
+	}
+
+	// Remind about system tools on Linux.
+	hasSystemMissing := false
+	for _, r := range results {
+		if r.Action == "missing" {
+			for _, def := range tools.AllTools {
+				if def.Name == r.Tool && def.Kind == tools.KindSystem {
+					hasSystemMissing = true
+				}
+			}
+		}
+	}
+	if hasSystemMissing {
+		fmt.Println()
+		fmt.Println("System tools (nmap) require manual install:")
+		fmt.Println("  sudo apt install -y nmap     # Debian / Ubuntu / Kali")
+		fmt.Println("  brew install nmap            # macOS")
 	}
 
 	return nil
