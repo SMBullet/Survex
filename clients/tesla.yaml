@@ -1,0 +1,23 @@
+# Tesla bug bounty — https://bugcrowd.com/tesla
+# In-scope: *.tesla.com (see program page for full scope and exclusions)
+# Automated scanning is permitted per the program policy.
+# Do NOT scan out-of-scope assets.
+
+client: tesla
+target: tesla.com
+
+scan:
+  subdomains: true
+  dns: true
+  ports: true
+  http: true
+  nuclei: true
+  screenshot: false
+
+output:
+  dir: reports/tesla
+  format: json
+  keep_history: true
+
+alerts:
+  fail_on: ""
