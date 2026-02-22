@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -299,6 +300,13 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 			result.HTTP = httpResults
 			log.Printf("[survex]   %d live HTTP services found", len(result.HTTP))
 		}
+	}
+
+	// ── Step 5b: Technology Fingerprinting ────────────────────────────────────
+	if !cfg.Scan.Passive && len(result.HTTP) > 0 {
+		log.Printf("[survex] fingerprinting technologies (%d live URLs)", len(result.HTTP))
+		result.Technologies = tools.DetectTechnologies(result.HTTP, timeout)
+		log.Printf("[survex]   techdetect: %d technologies identified", len(result.Technologies))
 	}
 
 	// ── Steps 6–11: Parallel Analysis ────────────────────────────────────────
@@ -760,6 +768,15 @@ func expandTargets(targets []string) []string {
 			continue
 		}
 
+		// Strip URL schemes (http:// / https://) — DNS, nmap, and TLS tools
+		// expect bare hostnames or IPs, not full URLs.
+		// e.g. "https://www.example.com/path" → "www.example.com"
+		if strings.Contains(t, "://") {
+			if u, err := url.Parse(t); err == nil && u.Host != "" {
+				t = u.Hostname() // strips scheme, port, and path
+			}
+		}
+
 		// File target
 		if strings.HasSuffix(t, ".txt") || fileExists(t) {
 			lines, err := loadFile(t)
@@ -859,6 +876,7 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 	}
 
 	files := map[string]any{
+		"technologies.json":     result.Technologies,
 		"subdomains.json":       result.Subdomains,
 		"services.json":         result.Services,
 		"http.json":             result.HTTP,
@@ -918,6 +936,7 @@ func writeOutput(cfg *config.Config, result *models.ScanResult) error {
 			"open_redirect_count":   len(result.OpenRedirects),
 			"graphql_count":         len(result.GraphQL),
 			"api_endpoint_count":    len(result.APIEndpoints),
+			"technology_count": len(result.Technologies),
 			"finding_count":    len(result.Findings),
 			"max_severity":     risk.MaxSeverity(result.Findings),
 		},

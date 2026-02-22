@@ -297,10 +297,21 @@ type APIEndpoint struct {
 	StatusCode int    `json:"status_code"`
 }
 
+// ── Technology Fingerprinting ──────────────────────────────────────────────
+
+// Technology holds a detected technology on a host.
+type Technology struct {
+	Host     string `json:"host"`
+	Name     string `json:"name"`
+	Category string `json:"category"` // CMS | E-Commerce | Framework | JavaScript | Language | Web Server | CDN | WAF | Analytics
+	Version  string `json:"version,omitempty"`
+}
+
 // ── Aggregated scan result ─────────────────────────────────────────────────
 
 type ScanResult struct {
 	Scan            Scan             `json:"scan"`
+	Technologies    []Technology     `json:"technologies,omitempty"`
 	Subdomains      []Subdomain      `json:"subdomains"`
 	Services        []Service        `json:"services"`
 	HTTP            []HTTPService    `json:"http"`

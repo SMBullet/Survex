@@ -176,17 +176,20 @@ func Init(path string) error {
 }
 
 // Save stores a result using the default store.
+// If the store has not been initialised (e.g. web-server mode), this is a no-op.
 func Save(client string, result *models.ScanResult) error {
 	if defaultStore == nil {
-		return fmt.Errorf("store not initialized")
+		return nil
 	}
 	return defaultStore.Save(client, result)
 }
 
 // LoadLast retrieves the last scan using the default store.
+// If the store has not been initialised, returns (nil, nil) so callers treat it
+// as "no previous scan" without logging warnings.
 func LoadLast(client string) (*models.ScanResult, error) {
 	if defaultStore == nil {
-		return nil, fmt.Errorf("store not initialized")
+		return nil, nil
 	}
 	return defaultStore.LoadLast(client)
 }

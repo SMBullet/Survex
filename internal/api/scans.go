@@ -26,14 +26,16 @@ type createScanReq struct {
 }
 
 type scanOpts struct {
-	NoSubs  bool   `json:"no_subs"`
-	Passive bool   `json:"passive"`
-	Ports   string `json:"ports"`
-	Profile string `json:"profile"`
-	Rate    int    `json:"rate"`
-	Threads int    `json:"threads"`
-	Timeout int    `json:"timeout"`
-	Proxy   string `json:"proxy"`
+	NoSubs       bool   `json:"no_subs"`
+	Passive      bool   `json:"passive"`
+	Ports        string `json:"ports"`
+	Profile      string `json:"profile"`
+	Rate         int    `json:"rate"`
+	Threads      int    `json:"threads"`
+	Timeout      int    `json:"timeout"`
+	Proxy        string `json:"proxy"`
+	GitHubToken  string `json:"github_token"`
+	ShodanKey    string `json:"shodan_key"`
 }
 
 // handleListScans returns the authenticated user's scan history.
@@ -88,6 +90,13 @@ func handleCreateScan(database *db.DB, q *queue.Queue) fiber.Handler {
 				Threads: req.Options.Threads,
 				Timeout: req.Options.Timeout,
 				Proxy:   req.Options.Proxy,
+			},
+			GitHub: config.GitHubOptions{
+				Token: req.Options.GitHubToken,
+			},
+			Shodan: config.ShodanOptions{
+				APIKey:  req.Options.ShodanKey,
+				Enabled: req.Options.ShodanKey != "",
 			},
 			Output: config.OutputOptions{
 				Dir: filepath.Join("reports", req.Client),

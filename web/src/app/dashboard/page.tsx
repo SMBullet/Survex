@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api, ScanJob } from "@/lib/api";
-import { Nav } from "@/components/nav";
+import { AppShell } from "@/components/app-shell";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,9 +81,8 @@ export default function Dashboard() {
   const criticalOrHigh = scans.filter(s => s.max_severity === "critical" || s.max_severity === "high").length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Nav />
-      <main className="mx-auto max-w-7xl px-4 py-8 space-y-8">
+    <AppShell>
+      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -179,6 +178,6 @@ export default function Dashboard() {
           </div>
         )}
       </main>
-    </div>
+    </AppShell>
   );
 }

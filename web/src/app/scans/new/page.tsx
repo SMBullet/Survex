@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
-import { Nav } from "@/components/nav";
+import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,9 +139,8 @@ export default function NewScanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Nav />
-      <main className="mx-auto max-w-4xl px-4 py-8">
+    <AppShell>
+      <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold">New Scan</h1>
           <p className="text-muted-foreground mt-1 text-sm">Configure your scan target, profile, and modules.</p>
@@ -319,6 +318,6 @@ export default function NewScanPage() {
           </div>
         </form>
       </main>
-    </div>
+    </AppShell>
   );
 }

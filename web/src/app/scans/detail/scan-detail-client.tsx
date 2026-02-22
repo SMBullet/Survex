@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api, ScanJob } from "@/lib/api";
-import { Nav } from "@/components/nav";
+import { AppShell } from "@/components/app-shell";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -159,9 +159,8 @@ export default function ScanDetailClient() {
   const isActive = scan?.status === "queued" || scan?.status === "running";
 
   return (
-    <div className="min-h-screen bg-background">
-      <Nav />
-      <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
+    <AppShell>
+      <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -314,6 +313,6 @@ export default function ScanDetailClient() {
           </div>
         )}
       </main>
-    </div>
+    </AppShell>
   );
 }
