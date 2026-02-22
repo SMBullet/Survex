@@ -26,6 +26,22 @@ warn()    { echo -e "${YELLOW}[!]${RESET} $*"; }
 err()     { echo -e "${RED}[✗]${RESET} $*"; }
 section() { echo -e "\n${BOLD}${CYAN}── $* ──${RESET}"; }
 
+# ── Root / sudo guard ─────────────────────────────────────────────────────────
+# Do NOT run this script with sudo. It uses sudo internally for apt commands.
+# Running as root breaks Go/npm/gem — they install into /root/ instead of your
+# home directory, and PATH updates go to /root/.bashrc which your normal user
+# never sources.
+if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+  err "Do not run this script as root or with sudo."
+  err ""
+  err "The script calls sudo automatically for apt install commands."
+  err "Run it as your normal user:"
+  err ""
+  err "    ./install.sh"
+  err ""
+  exit 1
+fi
+
 # ── Platform detection ────────────────────────────────────────────────────────
 OS="$(uname -s)"
 case "$OS" in
@@ -129,7 +145,16 @@ fi
 
 # Ensure Go bin dir is in PATH for this session (survex install depends on it)
 GOBIN="$(go env GOPATH)/bin"
-export PATH="$GOBIN:$PATH"
+export PATH="$GOBIN:$HOME/.local/bin:$PATH"
+
+# Persist ~/.local/bin (used by pip --user and pipx) to shell configs
+LOCAL_BIN="$HOME/.local/bin"
+for RC in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+  [ -f "$RC" ] || continue
+  grep -q "$LOCAL_BIN" "$RC" 2>/dev/null && continue
+  printf '\n# Added by survex install.sh\nexport PATH="%s:$PATH"\n' "$LOCAL_BIN" >> "$RC"
+  ok "Added ~/.local/bin to PATH in $RC"
+done
 
 # =============================================================================
 # Step 3 — Node.js (≥ 18) and npm
@@ -208,13 +233,28 @@ if ! has pip3; then
   if [ "$DISTRO" = "apt" ]; then apt_install python3-pip; else brew_install python3; fi
 fi
 
-if pip3 show droopescan &>/dev/null; then
+if pip3 show droopescan &>/dev/null 2>&1 || has droopescan; then
   DROOP_VER="$(pip3 show droopescan 2>/dev/null | grep '^Version' | awk '{print $2}')"
-  ok "droopescan $DROOP_VER already installed."
+  ok "droopescan ${DROOP_VER:-already} installed."
 else
   info "Installing droopescan (Drupal/Joomla CMS scanner)…"
-  pip3 install droopescan --quiet
-  ok "droopescan installed."
+  # Ubuntu 22.04+ / Debian 12+ enforce PEP 668 — pip installs outside a venv
+  # are blocked unless --break-system-packages is passed. This is intentional
+  # for a dedicated pentest machine; it does not harm the system.
+  # Try pipx first (cleanest), then pip with the override flag.
+  if has pipx; then
+    pipx install droopescan --quiet
+    # pipx installs into ~/.local/bin — make sure it is on PATH
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "droopescan installed via pipx."
+  elif pip3 install droopescan --quiet --break-system-packages 2>/dev/null; then
+    ok "droopescan installed."
+  else
+    # Last resort: user-scheme install (no sudo, no venv)
+    pip3 install droopescan --quiet --user
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "droopescan installed (user scheme)."
+  fi
 fi
 
 # =============================================================================
