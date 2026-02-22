@@ -1,5 +1,17 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
+export interface Finding {
+  asset: string;
+  port?: number;
+  severity: string; // info | low | medium | high | critical
+  title: string;
+  detail?: string;
+  first_seen: string;
+  new: boolean;
+  cvss_score?: number;   // 0–10 CVSS v3.1 base score
+  cvss_vector?: string;  // e.g. CVSS:3.1/AV:N/AC:L/...
+}
+
 export interface Technology {
   host: string;
   name: string;
@@ -83,6 +95,7 @@ export const api = {
         method: "DELETE",
       }),
     technologies: (id: string) => request<Technology[]>(`/api/v1/scans/${id}/technologies`),
+    findings: (id: string) => request<Finding[]>(`/api/v1/scans/${id}/findings`),
     reportUrl: (id: string) => `${BASE}/api/v1/scans/${id}/report?token=${token()}`,
     logsWsUrl: (id: string) => {
       const t = token();

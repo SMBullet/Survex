@@ -593,6 +593,19 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		log.Printf("[survex]   %d Shodan host records retrieved", len(result.ShodanHosts))
 	}
 
+	// ── Step 16a: CVSS Enrichment for Shodan CVEs ────────────────────────────
+	if len(result.ShodanHosts) > 0 {
+		var cveIDs []string
+		for _, sh := range result.ShodanHosts {
+			cveIDs = append(cveIDs, sh.Vulns...)
+		}
+		if len(cveIDs) > 0 {
+			log.Printf("[survex] enriching %d CVEs with NVD CVSS data", len(cveIDs))
+			result.CVSSEnrichment = tools.EnrichCVSS(ctx, cveIDs)
+			log.Printf("[survex]   cvss: %d entries enriched", len(result.CVSSEnrichment))
+		}
+	}
+
 	// ── Step 16b: GitHub Exposure Check ──────────────────────────────────────
 	if cfg.GitHubEnabled() {
 		if len(domains) == 0 {

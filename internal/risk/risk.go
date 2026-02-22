@@ -312,14 +312,29 @@ func Score(result *models.ScanResult) []models.Finding {
 
 	// ── Shodan CVE findings ───────────────────────────────────────────────────
 	for _, sh := range result.ShodanHosts {
-		for _, vuln := range sh.Vulns {
+		for _, cveID := range sh.Vulns {
+			sev := "high" // default when no CVSS data available
+			var cvssScore float64
+			var cvssVector string
+			if cvssData, ok := result.CVSSEnrichment[cveID]; ok && cvssData.Score > 0 {
+				cvssScore = cvssData.Score
+				cvssVector = cvssData.Vector
+				sev = cvssLabel(cvssScore)
+			}
+			title := fmt.Sprintf("Shodan: %s reported for host", cveID)
+			detail := fmt.Sprintf("Shodan reports %s affecting %s (ISP: %s, Country: %s)", cveID, sh.IP, sh.ISP, sh.Country)
+			if cvssScore > 0 {
+				detail += fmt.Sprintf(" | CVSS %.1f", cvssScore)
+			}
 			findings = append(findings, models.Finding{
-				Asset:     sh.IP,
-				Severity:  "high",
-				Title:     fmt.Sprintf("Shodan: CVE reported for host — %s", vuln),
-				Detail:    fmt.Sprintf("Shodan reports %s affecting %s (ISP: %s, Country: %s)", vuln, sh.IP, sh.ISP, sh.Country),
-				FirstSeen: now,
-				New:       firstScan,
+				Asset:      sh.IP,
+				Severity:   sev,
+				Title:      title,
+				Detail:     detail,
+				FirstSeen:  now,
+				New:        firstScan,
+				CVSSScore:  cvssScore,
+				CVSSVector: cvssVector,
 			})
 		}
 	}
@@ -557,16 +572,33 @@ func Score(result *models.ScanResult) []models.Finding {
 	// ── Nuclei vulnerability findings ─────────────────────────────────────────
 	for _, v := range result.Vulnerabilities {
 		detail := fmt.Sprintf("Template: %s | URL: %s", v.TemplateID, v.URL)
+		if v.CVEID != "" {
+			detail += " | " + v.CVEID
+		}
+		if v.CVSSScore > 0 {
+			detail += fmt.Sprintf(" | CVSS %.1f", v.CVSSScore)
+		}
 		if v.Detail != "" {
 			detail += " | " + v.Detail
 		}
+		// Use CVSS-derived severity when the template's embedded score is available
+		// and differs from the template's own severity classification.
+		sev := v.Severity
+		if v.CVSSScore > 0 {
+			cvss := cvssLabel(v.CVSSScore)
+			if severityOrder()[cvss] > severityOrder()[sev] {
+				sev = cvss
+			}
+		}
 		findings = append(findings, models.Finding{
-			Asset:     v.Host,
-			Severity:  v.Severity,
-			Title:     fmt.Sprintf("[nuclei] %s", v.Name),
-			Detail:    detail,
-			FirstSeen: now,
-			New:       firstScan,
+			Asset:      v.Host,
+			Severity:   sev,
+			Title:      fmt.Sprintf("[nuclei] %s", v.Name),
+			Detail:     detail,
+			FirstSeen:  now,
+			New:        firstScan,
+			CVSSScore:  v.CVSSScore,
+			CVSSVector: v.CVSSVector,
 		})
 	}
 
@@ -698,6 +730,22 @@ func MaxSeverity(findings []models.Finding) string {
 func MeetsThreshold(maxSeverity, threshold string) bool {
 	order := severityOrder()
 	return order[maxSeverity] >= order[threshold]
+}
+
+// cvssLabel converts a CVSS v3.x base score to a qualitative severity label.
+func cvssLabel(score float64) string {
+	switch {
+	case score <= 0:
+		return "info"
+	case score < 4.0:
+		return "low"
+	case score < 7.0:
+		return "medium"
+	case score < 9.0:
+		return "high"
+	default:
+		return "critical"
+	}
 }
 
 // jsSecretSeverity maps a JS secret pattern type to a finding severity.

@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { api, ScanJob, Technology } from "@/lib/api";
+import { api, ScanJob, Technology, Finding } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import { SeverityBadge } from "@/components/severity-badge";
 import {
   ExternalLink, Square, RefreshCw, Clock, Target,
   Layers, CheckCircle2, Circle, Loader2, XCircle,
   AlertTriangle, Cpu, Zap, ChevronRight, Activity,
-  Shield, Globe, Terminal,
+  Shield, Globe, Terminal, ShieldAlert, ChevronDown,
 } from "lucide-react";
 
 // ── Step definitions ──────────────────────────────────────────────────────────
@@ -79,6 +79,28 @@ const CATEGORY_STYLE: Record<string, { bg: string; text: string; border: string 
 };
 const DEFAULT_STYLE = { bg: "bg-zinc-800/40", text: "text-zinc-400", border: "border-zinc-700/30" };
 
+// ── CVSS score badge ──────────────────────────────────────────────────────────
+
+function CVSSBadge({ score, vector }: { score?: number; vector?: string }) {
+  if (!score || score <= 0) return null;
+
+  let color = "text-zinc-400 border-zinc-600/40 bg-zinc-700/20";
+  if (score >= 9.0)      color = "text-red-400 border-red-500/30 bg-red-500/10";
+  else if (score >= 7.0) color = "text-orange-400 border-orange-500/30 bg-orange-500/10";
+  else if (score >= 4.0) color = "text-yellow-400 border-yellow-500/30 bg-yellow-500/10";
+  else                   color = "text-blue-400 border-blue-500/30 bg-blue-500/10";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-bold tabular-nums font-mono ${color}`}
+      title={vector ? `CVSS:3.1 Vector — ${vector}` : undefined}
+    >
+      <Shield className="h-2.5 w-2.5 shrink-0" />
+      {score.toFixed(1)}
+    </span>
+  );
+}
+
 const CMS_SCANNER: Record<string, string> = {
   wordpress: "wpscan",
   drupal:    "droopescan",
@@ -143,6 +165,8 @@ export default function ScanDetailClient() {
   const [wsConnected, setWsConnected]   = useState(false);
   const [cancelling, setCancelling]     = useState(false);
   const [technologies, setTechnologies] = useState<Technology[]>([]);
+  const [findings, setFindings]         = useState<Finding[]>([]);
+  const [expandedFinding, setExpandedFinding] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const wsRef  = useRef<WebSocket | null>(null);
 
@@ -158,6 +182,12 @@ export default function ScanDetailClient() {
     catch { /* no-op */ }
   }, [id]);
 
+  const fetchFindings = useCallback(async () => {
+    if (!id) return;
+    try { setFindings((await api.scans.findings(id)) ?? []); }
+    catch { /* no-op */ }
+  }, [id]);
+
   const connectWs = useCallback(() => {
     if (!id || wsRef.current) return;
     const ws = new WebSocket(api.scans.logsWsUrl(id));
@@ -169,7 +199,18 @@ export default function ScanDetailClient() {
   }, [id]);
 
   useEffect(() => { if (!loading && !user) router.replace("/login"); }, [user, loading, router]);
-  useEffect(() => { if (user && id) fetchScan().then(() => connectWs()); }, [user, id, fetchScan, connectWs]);
+  useEffect(() => {
+    if (user && id) {
+      fetchScan().then(d => {
+        connectWs();
+        if (d && ["done", "failed", "cancelled"].includes(d.status)) {
+          fetchTechnologies();
+          fetchFindings();
+        }
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, id]);
   useEffect(() => {
     if (!scan || (scan.status !== "queued" && scan.status !== "running")) return;
     const t = setInterval(fetchScan, 4000);
@@ -180,6 +221,7 @@ export default function ScanDetailClient() {
       wsRef.current?.close();
       fetchScan();
       fetchTechnologies();
+      fetchFindings();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scan?.status]);
@@ -491,6 +533,121 @@ export default function ScanDetailClient() {
                     </span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Findings panel ────────────────────────────────────── */}
+          {findings.length > 0 && (
+            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.05] bg-white/[0.015]">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-orange-400" />
+                  <span className="text-[13px] font-semibold text-white">Findings</span>
+                  <span className="rounded-full border border-orange-500/25 bg-orange-500/10 px-2 py-0.5 text-[10px] font-bold text-orange-400">
+                    {findings.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] text-zinc-600">
+                  {findings.filter(f => f.cvss_score && f.cvss_score > 0).length > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] text-zinc-500">
+                      <Shield className="h-3 w-3" />
+                      CVSS scored
+                    </span>
+                  )}
+                  <span className="font-mono">{findings.filter(f => f.severity === "critical" || f.severity === "high").length} critical/high</span>
+                </div>
+              </div>
+
+              {/* Column headers */}
+              <div className="hidden sm:grid sm:grid-cols-[2fr_1fr_90px_80px_40px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
+                {["Finding", "Asset", "Severity", "CVSS", ""].map(h => (
+                  <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
+                ))}
+              </div>
+
+              {/* Rows */}
+              <div className="divide-y divide-white/[0.03]">
+                {findings.map((f, idx) => {
+                  const isOpen = expandedFinding === idx;
+                  const rowBorder =
+                    f.severity === "critical" ? "border-l-[2px] border-l-red-500/50" :
+                    f.severity === "high"     ? "border-l-[2px] border-l-orange-500/50" : "";
+                  return (
+                    <div key={idx}>
+                      <div
+                        onClick={() => setExpandedFinding(isOpen ? null : idx)}
+                        className={`hidden sm:grid sm:grid-cols-[2fr_1fr_90px_80px_40px] gap-0 px-5 py-3.5 cursor-pointer transition-colors hover:bg-white/[0.02] group ${rowBorder}`}
+                      >
+                        <div className="flex items-center min-w-0 pr-3">
+                          {f.new && (
+                            <span className="shrink-0 mr-2 h-1.5 w-1.5 rounded-full bg-blue-400" title="New finding" />
+                          )}
+                          <span className="text-[12px] text-zinc-300 font-medium truncate group-hover:text-white transition-colors">
+                            {f.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center min-w-0 pr-2">
+                          <span className="text-[11px] font-mono text-zinc-500 truncate">{f.asset}{f.port ? `:${f.port}` : ""}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <SeverityBadge severity={f.severity} />
+                        </div>
+                        <div className="flex items-center">
+                          <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <ChevronDown className={`h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-500 transition-all duration-150 ${isOpen ? "rotate-180" : ""}`} />
+                        </div>
+                      </div>
+
+                      {/* Expanded detail */}
+                      {isOpen && (
+                        <div className="hidden sm:block px-5 py-3 bg-white/[0.015] border-t border-white/[0.04]">
+                          <div className="flex flex-wrap gap-x-6 gap-y-2 mb-2">
+                            {f.cvss_score && f.cvss_score > 0 && (
+                              <div>
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-700 mb-1">CVSS Score</p>
+                                <div className="flex items-center gap-2">
+                                  <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
+                                  {f.cvss_vector && (
+                                    <span className="text-[10px] font-mono text-zinc-600">{f.cvss_vector}</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-700 mb-1">First Seen</p>
+                              <p className="text-[11px] text-zinc-500 font-mono">{new Date(f.first_seen).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          {f.detail && (
+                            <p className="text-[11px] text-zinc-500 font-mono leading-relaxed break-all">{f.detail}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mobile row */}
+                      <div
+                        onClick={() => setExpandedFinding(isOpen ? null : idx)}
+                        className={`sm:hidden flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] ${rowBorder}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400" />}
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-medium text-zinc-300 truncate">{f.title}</p>
+                            <p className="text-[10px] text-zinc-600 font-mono truncate">{f.asset}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
+                          <SeverityBadge severity={f.severity} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -206,25 +206,36 @@ type TakeoverResult struct {
 
 // ── Vulnerabilities / Findings ────────────────────────────────────────────
 
+// CVSSData holds a CVSS v3.x base score and vector string.
+type CVSSData struct {
+	Score  float64 `json:"score"`
+	Vector string  `json:"vector"`
+}
+
 // Vulnerability holds a finding from the nuclei scanner.
 type Vulnerability struct {
-	Host       string `json:"host"`
-	TemplateID string `json:"template_id"`
-	Name       string `json:"name"`
-	Severity   string `json:"severity"` // info | low | medium | high | critical
-	URL        string `json:"url"`
-	Detail     string `json:"detail,omitempty"`
+	Host       string  `json:"host"`
+	TemplateID string  `json:"template_id"`
+	Name       string  `json:"name"`
+	Severity   string  `json:"severity"` // info | low | medium | high | critical
+	URL        string  `json:"url"`
+	Detail     string  `json:"detail,omitempty"`
+	CVSSScore  float64 `json:"cvss_score,omitempty"`  // 0–10 CVSS v3.1 base score
+	CVSSVector string  `json:"cvss_vector,omitempty"` // e.g. CVSS:3.1/AV:N/AC:L/...
+	CVEID      string  `json:"cve_id,omitempty"`      // e.g. CVE-2021-44228
 }
 
 // Finding is a risk-scored, deduplicated finding surfaced to the operator.
 type Finding struct {
-	Asset     string    `json:"asset"`
-	Port      int       `json:"port,omitempty"`
-	Severity  string    `json:"severity"` // info | low | medium | high | critical
-	Title     string    `json:"title"`
-	Detail    string    `json:"detail,omitempty"`
-	FirstSeen time.Time `json:"first_seen"`
-	New       bool      `json:"new"`
+	Asset      string    `json:"asset"`
+	Port       int       `json:"port,omitempty"`
+	Severity   string    `json:"severity"` // info | low | medium | high | critical
+	Title      string    `json:"title"`
+	Detail     string    `json:"detail,omitempty"`
+	FirstSeen  time.Time `json:"first_seen"`
+	New        bool      `json:"new"`
+	CVSSScore  float64   `json:"cvss_score,omitempty"`  // 0–10 CVSS v3.1 base score (CVE/nuclei only)
+	CVSSVector string    `json:"cvss_vector,omitempty"` // e.g. CVSS:3.1/AV:N/AC:L/...
 }
 
 // ── Diff ───────────────────────────────────────────────────────────────────
@@ -340,4 +351,7 @@ type ScanResult struct {
 	APIEndpoints     []APIEndpoint         `json:"api_endpoints,omitempty"`
 	Findings         []Finding             `json:"findings"`
 	Diff             *Diff                 `json:"diff,omitempty"`
+	// CVSSEnrichment maps CVE IDs to CVSS data fetched from the NVD API.
+	// Populated during the scan pipeline and consumed by the risk scorer.
+	CVSSEnrichment   map[string]CVSSData   `json:"cvss_enrichment,omitempty"`
 }

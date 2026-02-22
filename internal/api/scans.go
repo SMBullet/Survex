@@ -251,6 +251,37 @@ func handleScanLogs(database *db.DB, q *queue.Queue) fiber.Handler {
 	})
 }
 
+// handleScanFindings serves the findings.json produced by the scan.
+//
+//	GET /api/v1/scans/:id/findings
+func handleScanFindings(database *db.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		u := currentUser(c)
+		id := c.Params("id")
+
+		job, err := database.GetScanJob(id, u.UserID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fiber.ErrNotFound
+			}
+			return fiber.ErrInternalServerError
+		}
+
+		if job.ReportPath == "" {
+			return c.JSON([]any{})
+		}
+
+		findingsPath := filepath.Join(filepath.Dir(job.ReportPath), "findings.json")
+		data, err := os.ReadFile(findingsPath)
+		if err != nil {
+			return c.JSON([]any{})
+		}
+
+		var raw json.RawMessage = data
+		return c.JSON(raw)
+	}
+}
+
 // handleScanTechnologies serves the technologies.json produced by the scan.
 //
 //	GET /api/v1/scans/:id/technologies

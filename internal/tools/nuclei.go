@@ -21,6 +21,12 @@ type nucleiJSON struct {
 		Name     string   `json:"name"`
 		Severity string   `json:"severity"`
 		Tags     []string `json:"tags"`
+		// Classification holds optional CVSS data embedded in the template.
+		Classification struct {
+			CVSSScore   float64  `json:"cvss-score"`
+			CVSSMetrics string   `json:"cvss-metrics"`
+			CVEID       []string `json:"cve-id"`
+		} `json:"classification"`
 	} `json:"info"`
 	Host             string   `json:"host"`
 	MatchedAt        string   `json:"matched-at"`
@@ -217,14 +223,30 @@ func parseNucleiOutput(data []byte) []models.Vulnerability {
 			detail = strings.Join(out.ExtractedResults, " | ")
 		}
 
-		vulns = append(vulns, models.Vulnerability{
+		vuln := models.Vulnerability{
 			Host:       out.Host,
 			TemplateID: out.TemplateID,
 			Name:       out.Info.Name,
 			Severity:   out.Info.Severity,
 			URL:        out.MatchedAt,
 			Detail:     detail,
-		})
+		}
+
+		// Populate CVSS from the template's embedded classification block.
+		cl := out.Info.Classification
+		if cl.CVSSScore > 0 {
+			vuln.CVSSScore = cl.CVSSScore
+			vuln.CVSSVector = cl.CVSSMetrics
+		} else if cl.CVSSMetrics != "" {
+			// Calculate from vector if only the vector is present.
+			vuln.CVSSScore = CalculateCVSSScore(cl.CVSSMetrics)
+			vuln.CVSSVector = cl.CVSSMetrics
+		}
+		if len(cl.CVEID) > 0 {
+			vuln.CVEID = cl.CVEID[0]
+		}
+
+		vulns = append(vulns, vuln)
 	}
 	return vulns
 }
