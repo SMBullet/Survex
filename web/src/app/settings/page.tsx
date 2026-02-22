@@ -7,7 +7,7 @@ import { api, UserSettings, WebhookEntry } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import {
   Settings, Key, Webhook, Plus, Trash2, Save, CheckCircle2,
-  AlertCircle, Loader2, Eye, EyeOff, Send, ChevronRight,
+  AlertCircle, Loader2, Eye, EyeOff, Send, ChevronRight, Brain, Zap,
 } from "lucide-react";
 
 function InputField({
@@ -53,7 +53,15 @@ export default function SettingsPage() {
     shodan_key: "",
     github_token: "",
     webhook_urls: [],
+    ai_provider: "",
+    ai_api_key: "",
+    ai_model: "",
+    ai_base_url: "",
   });
+
+  // AI test state
+  const [testingAI, setTestingAI] = useState(false);
+  const [aiTestResult, setAITestResult] = useState<"ok" | "fail" | null>(null);
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
   const [error, setError]     = useState("");
@@ -125,6 +133,29 @@ export default function SettingsPage() {
       setTestingIdx(null);
     }
   };
+
+  const testAI = async () => {
+    setTestingAI(true);
+    setAITestResult(null);
+    try {
+      await api.ai.query("scan_config", { description: "test connection" });
+      setAITestResult("ok");
+    } catch {
+      setAITestResult("fail");
+    } finally {
+      setTestingAI(false);
+    }
+  };
+
+  const AI_PROVIDERS = [
+    { id: "anthropic", label: "Anthropic",  sub: "Claude Haiku / Sonnet",    placeholder: "sk-ant-…" },
+    { id: "openai",    label: "OpenAI",     sub: "GPT-4o / GPT-4o-mini",      placeholder: "sk-…" },
+    { id: "deepseek",  label: "DeepSeek",   sub: "deepseek-chat / reasoner",  placeholder: "sk-…" },
+    { id: "gemini",    label: "Gemini",     sub: "gemini-1.5-flash / pro",    placeholder: "AIza…" },
+    { id: "ollama",    label: "Ollama",     sub: "Local self-hosted model",   placeholder: "none needed" },
+  ];
+
+  const selectedProvider = AI_PROVIDERS.find(p => p.id === settings.ai_provider);
 
   if (loading || !user) return null;
 
@@ -244,6 +275,108 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     ))
+                  )}
+                </div>
+              </div>
+
+              {/* AI Assistant section */}
+              <div className="rounded-xl border border-violet-500/20 bg-[#160025]/60 overflow-hidden">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
+                  <Brain className="h-4 w-4 text-violet-400" />
+                  <span className="text-[13px] font-semibold text-white">AI Assistant</span>
+                  <span className="ml-auto text-[10px] text-zinc-700">Powers: finding explanations · scan config · executive summaries</span>
+                </div>
+                <div className="p-5 space-y-5">
+
+                  {/* Provider grid */}
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-600">Provider</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                      {AI_PROVIDERS.map(p => {
+                        const active = settings.ai_provider === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setSettings(s => ({ ...s, ai_provider: p.id, ai_model: "" }))}
+                            className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
+                              active
+                                ? "border-violet-500/50 bg-violet-500/12 text-violet-300"
+                                : "border-white/[0.07] bg-white/[0.02] text-zinc-500 hover:border-white/15 hover:text-zinc-300"
+                            }`}
+                          >
+                            <span className="text-[13px] font-semibold">{p.label}</span>
+                            <span className="text-[10px] opacity-60 leading-snug">{p.sub}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {settings.ai_provider && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {/* API Key */}
+                      {settings.ai_provider !== "ollama" && (
+                        <InputField
+                          label="API Key"
+                          value={settings.ai_api_key}
+                          onChange={v => setSettings(s => ({ ...s, ai_api_key: v }))}
+                          placeholder={selectedProvider?.placeholder ?? ""}
+                          type="password"
+                          hint="Stored securely and never exposed to other users."
+                        />
+                      )}
+
+                      {/* Model */}
+                      <InputField
+                        label="Model (optional)"
+                        value={settings.ai_model}
+                        onChange={v => setSettings(s => ({ ...s, ai_model: v }))}
+                        placeholder={
+                          settings.ai_provider === "anthropic" ? "claude-haiku-4-5-20251001" :
+                          settings.ai_provider === "openai"    ? "gpt-4o-mini" :
+                          settings.ai_provider === "deepseek"  ? "deepseek-chat" :
+                          settings.ai_provider === "gemini"    ? "gemini-1.5-flash" :
+                          "llama3.2"
+                        }
+                        hint="Leave blank to use the provider default."
+                      />
+
+                      {/* Base URL for Ollama */}
+                      {settings.ai_provider === "ollama" && (
+                        <InputField
+                          label="Ollama Base URL"
+                          value={settings.ai_base_url}
+                          onChange={v => setSettings(s => ({ ...s, ai_base_url: v }))}
+                          placeholder="http://localhost:11434"
+                          hint="Default: http://localhost:11434"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Test connection */}
+                  {settings.ai_provider && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={testAI}
+                        disabled={testingAI || (!settings.ai_api_key && settings.ai_provider !== "ollama")}
+                        className="flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/8 hover:bg-violet-500/15 disabled:opacity-40 px-3.5 py-2 text-[12px] font-medium text-violet-400 transition-all"
+                      >
+                        {testingAI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                        Test Connection
+                      </button>
+                      {aiTestResult === "ok"   && <span className="flex items-center gap-1.5 text-[12px] text-red-400"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>}
+                      {aiTestResult === "fail" && <span className="flex items-center gap-1.5 text-[12px] text-red-400"><AlertCircle className="h-3.5 w-3.5" />Connection failed — check your key and save first</span>}
+                      <span className="ml-auto text-[10px] text-zinc-700">Save settings first, then test</span>
+                    </div>
+                  )}
+
+                  {!settings.ai_provider && (
+                    <p className="text-[12px] text-zinc-700 text-center py-2">
+                      Select a provider above to configure AI features. The AI assistant can explain findings, suggest scan configurations, and write executive summaries.
+                    </p>
                   )}
                 </div>
               </div>

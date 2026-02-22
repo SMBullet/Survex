@@ -85,10 +85,15 @@ Survex ships with a full web platform — authentication, live scan management, 
 
 ```
 survex serve          ← Go API server (Fiber + WebSocket)
-├── REST API          ← /api/v1/auth, /api/v1/scans
+├── REST API          ← /api/v1/auth, /api/v1/scans, /api/v1/settings,
+│                        /api/v1/false-positives, /api/v1/schedules,
+│                        /api/v1/assets, /api/v1/scans/:id/findings,
+│                        /api/v1/ai/query
 ├── WebSocket logs    ← /api/v1/scans/:id/logs
 ├── Scan queue        ← single-worker, captures all log output
-├── SQLite DB         ← users + scan job history
+├── Scheduler         ← background goroutine, fires recurring scans on interval
+├── AI proxy          ← forwards to Anthropic / OpenAI / DeepSeek / Gemini / Ollama
+├── SQLite DB         ← users, scan jobs, user_settings (incl. ai_*), false_positives, schedules
 └── Next.js frontend  ← served as static files from web/out/
 ```
 
@@ -166,13 +171,66 @@ The Next.js app proxies API calls to `http://localhost:8080` automatically.
 | Feature | Description |
 |---------|-------------|
 | Authentication | Email + password, JWT tokens (7-day expiry) |
-| Dashboard | All scans with status, findings, severity, and time |
-| New Scan Wizard | Visual profile picker, module selector, target input |
+| Dashboard | All scans with status, findings count, max severity, and elapsed time |
+| New Scan Wizard | Visual profile picker (6 profiles), module group selector (28 modules), nuclei template/severity picker |
 | Live Logs | Real-time WebSocket terminal with color-coded output |
-| Pipeline Tracker | Step-by-step progress indicator (Initialising → Complete) |
+| Pipeline Tracker | Step-by-step progress with live counts per stage (e.g. "23 subdomains · 8 live HTTP") |
+| Findings View | Full findings table with severity badges, asset, title, source module |
+| Findings Filter | Search by keyword, filter by severity pill, toggle false positives |
+| Findings Export | Download findings as **CSV** or **JSON** directly from the scan detail page |
+| False Positive Management | Mark any finding as FP — suppressed globally across all future scans |
 | Cancel Scan | Stop running or queued scans instantly |
-| Open Report | View the HTML report directly in the browser |
-| Dark/Light Theme | Toggle between dark and light mode |
+| Open Report | View the dark-theme HTML report directly in the browser |
+| **Settings** | Global API keys: Shodan key, GitHub token — auto-injected into every scan |
+| **Webhooks** | Configure Slack/Discord webhook URLs with one-click test button |
+| **Asset Inventory** | Cross-scan inventory of all discovered subdomains and live URLs with first/last seen timestamps. Search, filter by type, CSV export. |
+| **Schedules** | Create recurring scans (every 6h / 12h / 24h / 48h / 72h / weekly). Enable/disable without deleting. |
+| **GitHub Scanning** | Dedicated UI to search GitHub for leaked secrets and code exposures for your domains |
+| **Cloud Discovery** | AWS / Azure / GCP asset discovery pages (coming soon) |
+| **AI Assistant** | Multi-provider AI integration: Claude, ChatGPT, DeepSeek, Gemini, or local Ollama |
+
+### AI Assistant
+
+Survex integrates AI across three key workflows. Configure your provider once in **Settings → AI Assistant**.
+
+#### Supported Providers
+
+| Provider | Models | Auth |
+|----------|--------|------|
+| Anthropic | claude-haiku-4-5, claude-sonnet-4-6, claude-opus-4-6 | API key |
+| OpenAI | gpt-4o, gpt-4o-mini, o1-mini | API key |
+| DeepSeek | deepseek-chat, deepseek-reasoner | API key |
+| Google Gemini | gemini-1.5-flash, gemini-1.5-pro, gemini-2.0 | API key |
+| Ollama | Any local model (llama3.2, mistral, codellama…) | Base URL |
+
+#### Features
+
+**1. AI Scan Configuration** (New Scan page)
+- Click **AI Assist** and describe your target in plain language
+- AI returns the best scan profile + modules + reasoning
+- Auto-applies the suggestion with one click
+- Example: *"External fintech web app, need full vuln scan, avoid noisy tools"* → suggests `web` profile
+
+**2. Per-Finding AI Explanation** (Scan Detail page)
+- Expand any finding and click **Explain this**
+- AI returns: what the vulnerability is, exploitation scenario, and concrete remediation steps
+- No need to Google CVE IDs or look up advisory pages
+
+**3. Executive Summary** (Scan Detail page)
+- Click **Generate** in the AI Executive Summary panel at the top of the findings list
+- AI writes a 3-5 sentence management-level summary of the scan's risk posture
+- Ready to paste into a client report or CISO briefing
+
+#### Configuration
+
+In **Settings → AI Assistant**:
+1. Select your provider (click a provider card)
+2. Enter your API key (stored securely, per-account)
+3. Optionally override the model name (defaults are sensible and cost-efficient)
+4. For Ollama: enter your base URL (default `http://localhost:11434`)
+5. Click **Save Settings**, then **Test Connection** to verify
+
+The AI endpoint is `POST /api/v1/ai/query` — requires JWT authentication.
 
 ### Scan Queue
 
@@ -973,12 +1031,18 @@ Survex/
 ├── internal/
 │   ├── api/
 │   │   ├── auth.go               ← JWT authentication: register, login, /me handlers
-│   │   ├── scans.go              ← Scan CRUD + WebSocket log streaming
+│   │   ├── scans.go              ← Scan CRUD, findings (with FP filter), WebSocket log streaming
+│   │   ├── settings.go           ← GET/PUT /api/v1/settings — Shodan key, GitHub token, webhooks
+│   │   ├── false_positives.go    ← FP list, add, remove — persisted per user
+│   │   ├── schedules.go          ← Recurring scan CRUD + RunScheduledJob()
+│   │   ├── assets.go             ← Cross-scan asset inventory (reads scan output files)
 │   │   └── server.go             ← Fiber app setup, CORS, routes, error handler
 │   ├── db/
-│   │   └── db.go                 ← SQLite schema for users + scan_jobs (web UI)
+│   │   └── db.go                 ← SQLite: users, scan_jobs, user_settings, false_positives, schedules
 │   ├── queue/
 │   │   └── queue.go              ← Single-worker scan queue with log capture + WebSocket fan-out
+│   ├── scheduler/
+│   │   └── scheduler.go          ← Background goroutine: fires recurring scans on interval
 │   ├── config/
 │   │   └── config.go             ← Config structs + GitHubEnabled(), ResolveProfile()
 │   ├── models/
@@ -1026,22 +1090,32 @@ Survex/
 │   │   └── store.go              ← SQLite persistence (pure Go, no CGO)
 │   └── report/
 │       └── report.go             ← Dark-theme HTML report (20+ sections)
-├── web/                          ← Next.js frontend
+├── web/                          ← Next.js frontend (cyberpunk dark UI)
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── layout.tsx        ← Root layout with AuthProvider + ThemeProvider
+│   │   │   ├── layout.tsx        ← Root layout with AuthProvider + ThemeProvider (dark)
 │   │   │   ├── page.tsx          ← Redirect: /dashboard or /login
-│   │   │   ├── login/page.tsx    ← Login + register (split-panel design)
-│   │   │   ├── dashboard/page.tsx← Scan list + stats dashboard
+│   │   │   ├── login/page.tsx    ← Cyberpunk split-panel login + register
+│   │   │   ├── dashboard/page.tsx← Scan list + 4 stat cards
+│   │   │   ├── assets/page.tsx   ← Cross-scan asset inventory (subdomains + URLs)
+│   │   │   ├── schedules/page.tsx← Recurring scan management
+│   │   │   ├── settings/page.tsx ← API keys + webhook management
+│   │   │   ├── github/page.tsx   ← GitHub code exposure scan form
+│   │   │   ├── gitlab/page.tsx   ← GitLab scanning (coming soon)
+│   │   │   ├── cloud/page.tsx    ← Cloud provider overview (AWS/Azure/GCP)
+│   │   │   ├── cloud/aws/        ← AWS discovery (coming soon)
+│   │   │   ├── cloud/azure/      ← Azure discovery (coming soon)
+│   │   │   ├── cloud/gcp/        ← GCP discovery (coming soon)
 │   │   │   └── scans/
-│   │   │       ├── new/page.tsx  ← New scan wizard (profile cards + module picker)
-│   │   │       └── [id]/page.tsx ← Scan detail: pipeline tracker + live log terminal
+│   │   │       ├── new/page.tsx  ← New scan wizard (6 profiles + 28 modules + nuclei config)
+│   │   │       └── detail/       ← Scan detail: pipeline tracker, live logs, findings, export
 │   │   ├── components/
-│   │   │   ├── nav.tsx           ← Navigation bar with theme toggle
-│   │   │   ├── severity-badge.tsx← Colored severity chip (critical/high/medium/low/info)
+│   │   │   ├── sidebar.tsx       ← Collapsible sidebar with active-scan badge
+│   │   │   ├── app-shell.tsx     ← Layout wrapper: sidebar + scrollable content
+│   │   │   ├── severity-badge.tsx← Severity chip: critical/high/medium/low/info
 │   │   │   └── ui/               ← shadcn/ui component library
 │   │   └── lib/
-│   │       ├── api.ts            ← API client (fetch wrapper + WebSocket URL helpers)
+│   │       ├── api.ts            ← API client: scans, settings, FPs, schedules, assets
 │   │       └── auth.tsx          ← AuthContext: login, register, logout, user state
 │   ├── package.json
 │   ├── next.config.ts            ← output: 'export' for static build
@@ -1082,8 +1156,8 @@ Survex/
 |-----------|-----------|
 | Framework | Next.js 15 (App Router, static export) |
 | Language | TypeScript |
-| Styling | Tailwind CSS v4 |
+| Styling | Tailwind CSS v4 — cyberpunk dark purple + red theme |
 | UI Components | shadcn/ui (Radix UI primitives) |
 | Icons | lucide-react |
-| Themes | next-themes (dark/light toggle) |
+| Theme | Forced dark — deep purple backgrounds, red accents, amber status |
 | Real-time logs | WebSocket (native browser API) |

@@ -46,6 +46,10 @@ type UserSettings struct {
 	ShodanKey   string    `json:"shodan_key"`
 	GitHubToken string    `json:"github_token"`
 	WebhookURLs string    `json:"webhook_urls"` // JSON array: [{name,url}]
+	AIProvider  string    `json:"ai_provider"`  // "anthropic"|"openai"|"deepseek"|"gemini"|"ollama"
+	AIAPIKey    string    `json:"ai_api_key"`
+	AIModel     string    `json:"ai_model"`
+	AIBaseURL   string    `json:"ai_base_url"`  // for Ollama custom endpoints
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
@@ -163,6 +167,23 @@ func (d *DB) migrate() error {
 	for _, stmt := range stmts {
 		if _, err := d.conn.Exec(stmt); err != nil {
 			return fmt.Errorf("migrate %q: %w", stmt[:min(40, len(stmt))], err)
+		}
+	}
+	return d.migrateAddColumns()
+}
+
+// migrateAddColumns adds new columns to existing tables without failing if they already exist.
+func (d *DB) migrateAddColumns() error {
+	cols := []struct{ table, col, def string }{
+		{"user_settings", "ai_provider", "TEXT NOT NULL DEFAULT ''"},
+		{"user_settings", "ai_api_key",  "TEXT NOT NULL DEFAULT ''"},
+		{"user_settings", "ai_model",    "TEXT NOT NULL DEFAULT ''"},
+		{"user_settings", "ai_base_url", "TEXT NOT NULL DEFAULT ''"},
+	}
+	for _, c := range cols {
+		_, err := d.conn.Exec(fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, c.table, c.col, c.def))
+		if err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add column %s.%s: %w", c.table, c.col, err)
 		}
 	}
 	return nil
@@ -300,11 +321,13 @@ func scanJobFromRow(row rowScanner) (*ScanJob, error) {
 
 func (d *DB) GetUserSettings(userID int64) (*UserSettings, error) {
 	row := d.conn.QueryRow(
-		`SELECT user_id, shodan_key, github_token, webhook_urls, updated_at
+		`SELECT user_id, shodan_key, github_token, webhook_urls,
+		        ai_provider, ai_api_key, ai_model, ai_base_url, updated_at
 		 FROM user_settings WHERE user_id = ?`, userID,
 	)
 	s := &UserSettings{}
-	err := row.Scan(&s.UserID, &s.ShodanKey, &s.GitHubToken, &s.WebhookURLs, &s.UpdatedAt)
+	err := row.Scan(&s.UserID, &s.ShodanKey, &s.GitHubToken, &s.WebhookURLs,
+		&s.AIProvider, &s.AIAPIKey, &s.AIModel, &s.AIBaseURL, &s.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return &UserSettings{UserID: userID, WebhookURLs: "[]"}, nil
 	}
@@ -316,14 +339,20 @@ func (d *DB) GetUserSettings(userID int64) (*UserSettings, error) {
 
 func (d *DB) UpsertUserSettings(s *UserSettings) error {
 	_, err := d.conn.Exec(
-		`INSERT INTO user_settings (user_id, shodan_key, github_token, webhook_urls, updated_at)
-		 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		`INSERT INTO user_settings
+		   (user_id, shodan_key, github_token, webhook_urls, ai_provider, ai_api_key, ai_model, ai_base_url, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 		 ON CONFLICT(user_id) DO UPDATE SET
 		   shodan_key   = excluded.shodan_key,
 		   github_token = excluded.github_token,
 		   webhook_urls = excluded.webhook_urls,
+		   ai_provider  = excluded.ai_provider,
+		   ai_api_key   = excluded.ai_api_key,
+		   ai_model     = excluded.ai_model,
+		   ai_base_url  = excluded.ai_base_url,
 		   updated_at   = CURRENT_TIMESTAMP`,
 		s.UserID, s.ShodanKey, s.GitHubToken, s.WebhookURLs,
+		s.AIProvider, s.AIAPIKey, s.AIModel, s.AIBaseURL,
 	)
 	return err
 }

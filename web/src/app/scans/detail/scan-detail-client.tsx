@@ -11,7 +11,7 @@ import {
   Layers, CheckCircle2, Circle, Loader2, XCircle,
   AlertTriangle, Cpu, Zap, ChevronRight, Activity,
   Shield, Globe, Terminal, ShieldAlert, ChevronDown,
-  Search, Download, Ban, Undo2, Filter,
+  Search, Download, Ban, Undo2, Filter, Brain, Sparkles,
 } from "lucide-react";
 
 // ── Step definitions ──────────────────────────────────────────────────────────
@@ -234,6 +234,13 @@ export default function ScanDetailClient() {
   const [sevFilter,   setSevFilter]       = useState<string | null>(null);
   const [showFPs,     setShowFPs]         = useState(false);
 
+  // AI state
+  const [aiSummary,        setAISummary]        = useState("");
+  const [aiSummaryLoading, setAISummaryLoading] = useState(false);
+  const [aiSummaryError,   setAISummaryError]   = useState("");
+  const [explainTexts,     setExplainTexts]     = useState<Record<number, string>>({});
+  const [explainLoading,   setExplainLoading]   = useState<Record<number, boolean>>({});
+
   const logRef = useRef<HTMLDivElement>(null);
   const wsRef  = useRef<WebSocket | null>(null);
 
@@ -325,6 +332,47 @@ export default function ScanDetailClient() {
       }
     } catch { /* ignore */ }
     finally { setMarkingFP(null); }
+  };
+
+  const generateAISummary = async () => {
+    if (!scan || findings.length === 0) return;
+    setAISummaryLoading(true);
+    setAISummaryError("");
+    try {
+      const topFindings = findings
+        .filter(f => ["critical", "high", "medium"].includes(f.severity))
+        .slice(0, 10)
+        .map(f => `${f.severity.toUpperCase()}: ${f.title} (${f.asset})`)
+        .join("\n");
+      const { result } = await api.ai.query("executive_summary", {
+        client: scan.client,
+        finding_count: scan.finding_count,
+        max_severity: scan.max_severity,
+        findings: topFindings || findings.slice(0, 5).map(f => `${f.severity.toUpperCase()}: ${f.title}`).join("\n"),
+      });
+      setAISummary(result);
+    } catch (e: unknown) {
+      setAISummaryError(e instanceof Error ? e.message : "AI query failed");
+    } finally {
+      setAISummaryLoading(false);
+    }
+  };
+
+  const explainFinding = async (idx: number, f: Finding) => {
+    setExplainLoading(prev => ({ ...prev, [idx]: true }));
+    try {
+      const { result } = await api.ai.query("explain_finding", {
+        title: f.title,
+        detail: f.detail ?? "",
+        severity: f.severity,
+        asset: f.asset,
+      });
+      setExplainTexts(prev => ({ ...prev, [idx]: result }));
+    } catch (e: unknown) {
+      setExplainTexts(prev => ({ ...prev, [idx]: `Error: ${e instanceof Error ? e.message : "AI query failed"}` }));
+    } finally {
+      setExplainLoading(prev => ({ ...prev, [idx]: false }));
+    }
   };
 
   if (loading || !user) return null;
@@ -758,6 +806,31 @@ export default function ScanDetailClient() {
                   </div>
                 </div>
 
+                {/* AI Executive Summary */}
+                <div className="mx-5 my-3 rounded-lg border border-violet-500/20 bg-violet-500/[0.04] overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-violet-500/10">
+                    <Brain className="h-3.5 w-3.5 text-violet-400" />
+                    <span className="text-[12px] font-semibold text-violet-300">AI Executive Summary</span>
+                    <button
+                      onClick={generateAISummary}
+                      disabled={aiSummaryLoading}
+                      className="ml-auto flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/20 disabled:opacity-50 px-2.5 py-1 text-[11px] font-medium text-violet-400 transition-all"
+                    >
+                      {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {aiSummaryLoading ? "Generating…" : aiSummary ? "Regenerate" : "Generate"}
+                    </button>
+                  </div>
+                  <div className="px-4 py-3 text-[12px] leading-relaxed">
+                    {aiSummary ? (
+                      <p className="text-zinc-300 whitespace-pre-wrap">{aiSummary}</p>
+                    ) : aiSummaryError ? (
+                      <p className="text-red-400">{aiSummaryError}</p>
+                    ) : (
+                      <p className="text-zinc-700">Click Generate to create an AI-powered executive summary of these findings. Requires AI provider configured in Settings.</p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Search + filter bar */}
                 <div className="flex items-center gap-3 px-5 py-2.5 border-b border-white/[0.04] bg-white/[0.005]">
                   <div className="relative flex-1 max-w-xs">
@@ -863,6 +936,34 @@ export default function ScanDetailClient() {
                             {f.detail && (
                               <p className="text-[11px] font-mono text-zinc-500 leading-relaxed break-all mb-3">{f.detail}</p>
                             )}
+
+                            {/* AI Explain */}
+                            <div className="mb-3 rounded-md border border-violet-500/15 bg-violet-500/[0.03] overflow-hidden">
+                              <div className="flex items-center gap-2 px-3 py-2 border-b border-violet-500/10">
+                                <Brain className="h-3 w-3 text-violet-500" />
+                                <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-widest">AI Explanation</span>
+                                {!explainTexts[idx] && (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); explainFinding(idx, f); }}
+                                    disabled={explainLoading[idx]}
+                                    className="ml-auto flex items-center gap-1 rounded border border-violet-500/25 bg-violet-500/8 hover:bg-violet-500/18 disabled:opacity-50 px-2 py-0.5 text-[10px] font-medium text-violet-400 transition-all"
+                                  >
+                                    {explainLoading[idx] ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5" />}
+                                    {explainLoading[idx] ? "Asking AI…" : "Explain this"}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="px-3 py-2 text-[11px] leading-relaxed">
+                                {explainLoading[idx] ? (
+                                  <span className="text-zinc-600 flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Analyzing finding…</span>
+                                ) : explainTexts[idx] ? (
+                                  <p className="text-zinc-300 whitespace-pre-wrap">{explainTexts[idx]}</p>
+                                ) : (
+                                  <p className="text-zinc-700">Click &quot;Explain this&quot; for an AI-powered breakdown of impact and remediation.</p>
+                                )}
+                              </div>
+                            </div>
+
                             <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-white/[0.05]">
                               {f.cvss_score && f.cvss_score > 0 && (
                                 <div className="flex items-center gap-2">

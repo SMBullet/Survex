@@ -9,9 +9,13 @@ import (
 )
 
 type settingsReq struct {
-	ShodanKey   string        `json:"shodan_key"`
-	GitHubToken string        `json:"github_token"`
+	ShodanKey   string         `json:"shodan_key"`
+	GitHubToken string         `json:"github_token"`
 	WebhookURLs []webhookEntry `json:"webhook_urls"`
+	AIProvider  string         `json:"ai_provider"`
+	AIAPIKey    string         `json:"ai_api_key"`
+	AIModel     string         `json:"ai_model"`
+	AIBaseURL   string         `json:"ai_base_url"`
 }
 
 type webhookEntry struct {
@@ -43,6 +47,10 @@ func handleGetSettings(database *db.DB) fiber.Handler {
 			"shodan_key":   s.ShodanKey,
 			"github_token": s.GitHubToken,
 			"webhook_urls": webhooks,
+			"ai_provider":  s.AIProvider,
+			"ai_api_key":   s.AIAPIKey,
+			"ai_model":     s.AIModel,
+			"ai_base_url":  s.AIBaseURL,
 		})
 	}
 }
@@ -73,6 +81,10 @@ func handlePutSettings(database *db.DB) fiber.Handler {
 			ShodanKey:   req.ShodanKey,
 			GitHubToken: req.GitHubToken,
 			WebhookURLs: string(whJSON),
+			AIProvider:  req.AIProvider,
+			AIAPIKey:    req.AIAPIKey,
+			AIModel:     req.AIModel,
+			AIBaseURL:   req.AIBaseURL,
 		}
 		if err := database.UpsertUserSettings(s); err != nil {
 			return fiber.ErrInternalServerError

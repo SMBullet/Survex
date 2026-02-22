@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertCircle, Globe, Shield, Server, Zap, Eye, Cloud, Activity, ChevronRight, Check, Target,
+  Brain, Sparkles, Loader2, ChevronDown,
 } from "lucide-react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -188,12 +189,49 @@ export default function NewScanPage() {
   const [submitting, setSubmitting]             = useState(false);
   const [error, setError]                       = useState("");
 
+  // AI Assist state
+  const [showAI, setShowAI]           = useState(false);
+  const [aiDescription, setAIDesc]    = useState("");
+  const [aiLoading, setAILoading]     = useState(false);
+  const [aiReasoning, setAIReasoning] = useState("");
+  const [aiError, setAIError]         = useState("");
+
   if (!loading && !user) { router.replace("/login"); return null; }
 
   const toggle = (id: string) =>
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const currentProfile = PROFILES.find(p => p.value === profile)!;
+
+  const handleAISuggest = async () => {
+    if (!aiDescription.trim()) return;
+    setAILoading(true);
+    setAIError("");
+    setAIReasoning("");
+    try {
+      const { result } = await api.ai.query("scan_config", { description: aiDescription });
+      // Strip markdown fences if present
+      const clean = result.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+      const parsed = JSON.parse(clean) as {
+        profile?: string;
+        modules?: string[];
+        reasoning?: string;
+        warnings?: string;
+      };
+      if (parsed.profile && parsed.profile !== "custom") {
+        setProfile(parsed.profile);
+      } else if (parsed.profile === "custom" && Array.isArray(parsed.modules) && parsed.modules.length > 0) {
+        setProfile("custom");
+        setSelected(new Set(parsed.modules.filter((m: string) => ALL_IDS.includes(m))));
+      }
+      const msg = [parsed.reasoning, parsed.warnings].filter(Boolean).join(" ⚠️ ");
+      setAIReasoning(msg);
+    } catch (e: unknown) {
+      setAIError(e instanceof Error ? e.message : "AI suggestion failed");
+    } finally {
+      setAILoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,6 +338,54 @@ export default function NewScanPage() {
                   <p className="text-[11px] text-zinc-600">Domains, IPs, or CIDR ranges — one per line or comma-separated.</p>
                 </div>
               </div>
+            </section>
+
+            {/* ── AI Assist ─────────────────────────────────────────────── */}
+            <section className="rounded-xl border border-violet-500/20 bg-[#160025]/70 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowAI(s => !s)}
+                className="w-full flex items-center gap-2.5 border-b border-violet-500/10 bg-white/[0.01] px-5 py-3 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <Brain className="h-4 w-4 text-violet-400" />
+                <span className="text-[13px] font-semibold text-white">AI Assist</span>
+                <span className="ml-1 text-[11px] text-zinc-600">Describe your target and let AI suggest a profile</span>
+                <ChevronDown className={`ml-auto h-4 w-4 text-zinc-600 transition-transform ${showAI ? "rotate-180" : ""}`} />
+              </button>
+              {showAI && (
+                <div className="p-5 space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-600">Describe your target</label>
+                    <textarea
+                      rows={3}
+                      placeholder={"e.g. \"External web app for a fintech company — need full web + vuln scan, avoid noisy tools\"\n\"Quick passive recon on a large enterprise domain with many subdomains\""}
+                      value={aiDescription}
+                      onChange={e => setAIDesc(e.target.value)}
+                      className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-violet-500/40 resize-none transition-all"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAISuggest}
+                      disabled={aiLoading || !aiDescription.trim()}
+                      className="flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/20 disabled:opacity-50 px-4 py-2 text-[12px] font-semibold text-violet-400 transition-all"
+                    >
+                      {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      {aiLoading ? "Thinking…" : "Suggest Configuration"}
+                    </button>
+                    {aiReasoning && (
+                      <p className="text-[11px] text-violet-300 flex-1">{aiReasoning}</p>
+                    )}
+                  </div>
+                  {aiError && (
+                    <p className="text-[11px] text-red-400 flex items-center gap-1.5">
+                      <span>⚠</span>{aiError}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-zinc-700">AI will suggest a scan profile and auto-select it. Requires AI provider configured in Settings.</p>
+                </div>
+              )}
             </section>
 
             {/* ── Profile selector ──────────────────────────────────────── */}

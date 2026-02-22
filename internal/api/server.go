@@ -85,6 +85,9 @@ func New(database *db.DB, q *queue.Queue, frontendDir string) *fiber.App {
 	// Assets (protected)
 	v1.Get("/assets", jwtMiddleware, handleListAssets(database))
 
+	// AI (protected)
+	v1.Post("/ai/query", jwtMiddleware, handleAIQuery(database))
+
 	// ── Frontend static files ────────────────────────────────────────────────
 	if frontendDir != "" {
 		app.Static("/", frontendDir, fiber.Static{

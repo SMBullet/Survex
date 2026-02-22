@@ -45,6 +45,10 @@ export interface UserSettings {
   shodan_key: string;
   github_token: string;
   webhook_urls: WebhookEntry[];
+  ai_provider: string;  // "anthropic" | "openai" | "deepseek" | "gemini" | "ollama"
+  ai_api_key: string;
+  ai_model: string;
+  ai_base_url: string;  // for Ollama custom endpoints
 }
 
 export interface FalsePositive {
@@ -192,5 +196,13 @@ export const api = {
 
   assets: {
     list: () => request<AssetEntry[]>("/api/v1/assets"),
+  },
+
+  ai: {
+    query: (task: string, payload: Record<string, unknown>) =>
+      request<{ result: string }>("/api/v1/ai/query", {
+        method: "POST",
+        body: JSON.stringify({ task, payload }),
+      }),
   },
 };
