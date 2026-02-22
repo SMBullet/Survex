@@ -82,6 +82,17 @@ func handleCreateScan(database *db.DB, q *queue.Queue) fiber.Handler {
 			req.Modules = []string{"httpx", "tls", "headers", "cors"}
 		}
 
+		// Auto-inject keys from user settings if not provided in the request.
+		savedSettings, _ := database.GetUserSettings(u.UserID)
+		shodanKey := req.Options.ShodanKey
+		if shodanKey == "" && savedSettings != nil {
+			shodanKey = savedSettings.ShodanKey
+		}
+		githubToken := req.Options.GitHubToken
+		if githubToken == "" && savedSettings != nil {
+			githubToken = savedSettings.GitHubToken
+		}
+
 		// Build a config.Config from the request.
 		cfg := &config.Config{
 			Client:  req.Client,
@@ -104,11 +115,11 @@ func handleCreateScan(database *db.DB, q *queue.Queue) fiber.Handler {
 				Templates:   req.Options.NucleiTemplates,
 			},
 			GitHub: config.GitHubOptions{
-				Token: req.Options.GitHubToken,
+				Token: githubToken,
 			},
 			Shodan: config.ShodanOptions{
-				APIKey:  req.Options.ShodanKey,
-				Enabled: req.Options.ShodanKey != "",
+				APIKey:  shodanKey,
+				Enabled: shodanKey != "",
 			},
 			Output: config.OutputOptions{
 				Dir: filepath.Join("reports", req.Client),
@@ -263,6 +274,7 @@ func handleScanLogs(database *db.DB, q *queue.Queue) fiber.Handler {
 }
 
 // handleScanFindings serves the findings.json produced by the scan.
+// Accepts ?filter_fp=true to strip findings that match user's false-positive list.
 //
 //	GET /api/v1/scans/:id/findings
 func handleScanFindings(database *db.DB) fiber.Handler {
@@ -286,6 +298,26 @@ func handleScanFindings(database *db.DB) fiber.Handler {
 		data, err := os.ReadFile(findingsPath)
 		if err != nil {
 			return c.JSON([]any{})
+		}
+
+		// When filter_fp=true, remove findings that match the user's FP suppressions.
+		if c.QueryBool("filter_fp", true) {
+			fpSet, err := database.GetFalsePositiveSet(u.UserID)
+			if err == nil && len(fpSet) > 0 {
+				var findings []map[string]any
+				if json.Unmarshal(data, &findings) == nil {
+					filtered := findings[:0]
+					for _, f := range findings {
+						asset, _ := f["asset"].(string)
+						title, _ := f["title"].(string)
+						fp := strings.ToLower(asset) + "|" + strings.ToLower(title)
+						if _, isFP := fpSet[fp]; !isFP {
+							filtered = append(filtered, f)
+						}
+					}
+					return c.JSON(filtered)
+				}
+			}
 		}
 
 		var raw json.RawMessage = data

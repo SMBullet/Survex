@@ -36,6 +36,48 @@ export interface ScanJob {
   error?: string;
 }
 
+export interface WebhookEntry {
+  name: string;
+  url: string;
+}
+
+export interface UserSettings {
+  shodan_key: string;
+  github_token: string;
+  webhook_urls: WebhookEntry[];
+}
+
+export interface FalsePositive {
+  id: number;
+  fingerprint: string;
+  asset: string;
+  title: string;
+  created_at: string;
+}
+
+export interface Schedule {
+  id: string;
+  user_id: number;
+  client: string;
+  targets: string;
+  modules: string;
+  options: string;
+  interval_h: number;
+  enabled: boolean;
+  next_run: string;
+  last_run?: string;
+  created_at: string;
+}
+
+export interface AssetEntry {
+  asset: string;
+  type: string;   // subdomain | url
+  client: string;
+  scan_id: string;
+  first_seen: string;
+  last_seen: string;
+}
+
 function token(): string {
   if (typeof window === "undefined") return "";
   return localStorage.getItem("survex_token") ?? "";
@@ -95,12 +137,60 @@ export const api = {
         method: "DELETE",
       }),
     technologies: (id: string) => request<Technology[]>(`/api/v1/scans/${id}/technologies`),
-    findings: (id: string) => request<Finding[]>(`/api/v1/scans/${id}/findings`),
+    findings: (id: string) => request<Finding[]>(`/api/v1/scans/${id}/findings?filter_fp=true`),
     reportUrl: (id: string) => `${BASE}/api/v1/scans/${id}/report?token=${token()}`,
     logsWsUrl: (id: string) => {
       const t = token();
       const base = BASE.replace(/^http/, "ws");
       return `${base}/api/v1/scans/${id}/logs?token=${t}`;
     },
+  },
+
+  settings: {
+    get: () => request<UserSettings>("/api/v1/settings"),
+    put: (payload: UserSettings) =>
+      request<{ ok: boolean }>("/api/v1/settings", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  falsePositives: {
+    list: () => request<FalsePositive[]>("/api/v1/false-positives"),
+    add: (asset: string, title: string) =>
+      request<FalsePositive>("/api/v1/false-positives", {
+        method: "POST",
+        body: JSON.stringify({ asset, title }),
+      }),
+    remove: (fingerprint: string) =>
+      request<void>(`/api/v1/false-positives/${encodeURIComponent(fingerprint)}`, {
+        method: "DELETE",
+      }),
+  },
+
+  schedules: {
+    list: () => request<Schedule[]>("/api/v1/schedules"),
+    create: (payload: {
+      client: string;
+      targets: string[];
+      modules: string[];
+      interval_h: number;
+      options?: Record<string, unknown>;
+    }) =>
+      request<Schedule>("/api/v1/schedules", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    toggle: (id: string, enabled: boolean) =>
+      request<{ ok: boolean; enabled: boolean }>(`/api/v1/schedules/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
+    delete: (id: string) =>
+      request<void>(`/api/v1/schedules/${id}`, { method: "DELETE" }),
+  },
+
+  assets: {
+    list: () => request<AssetEntry[]>("/api/v1/assets"),
   },
 };

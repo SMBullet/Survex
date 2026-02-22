@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -23,20 +24,54 @@ type User struct {
 
 // ScanJob represents a scan request stored in the database.
 type ScanJob struct {
-	ID        string    `json:"id"`
-	UserID    int64     `json:"user_id"`
-	Client    string    `json:"client"`
-	Targets   string    `json:"targets"`   // comma-separated
-	Modules   string    `json:"modules"`   // comma-separated
-	Options   string    `json:"options"`   // JSON blob of extra options
-	Status    string    `json:"status"`    // queued | running | done | failed | cancelled
-	CreatedAt time.Time `json:"created_at"`
-	StartedAt *time.Time `json:"started_at,omitempty"`
-	FinishedAt *time.Time `json:"finished_at,omitempty"`
-	FindingCount int    `json:"finding_count"`
-	MaxSeverity  string `json:"max_severity"`
-	ReportPath   string `json:"report_path,omitempty"`
-	ErrorMsg     string `json:"error,omitempty"`
+	ID           string     `json:"id"`
+	UserID       int64      `json:"user_id"`
+	Client       string     `json:"client"`
+	Targets      string     `json:"targets"`  // comma-separated
+	Modules      string     `json:"modules"`  // comma-separated
+	Options      string     `json:"options"`  // JSON blob of extra options
+	Status       string     `json:"status"`   // queued | running | done | failed | cancelled
+	CreatedAt    time.Time  `json:"created_at"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
+	FinishedAt   *time.Time `json:"finished_at,omitempty"`
+	FindingCount int        `json:"finding_count"`
+	MaxSeverity  string     `json:"max_severity"`
+	ReportPath   string     `json:"report_path,omitempty"`
+	ErrorMsg     string     `json:"error,omitempty"`
+}
+
+// UserSettings holds per-user global configuration.
+type UserSettings struct {
+	UserID      int64     `json:"user_id"`
+	ShodanKey   string    `json:"shodan_key"`
+	GitHubToken string    `json:"github_token"`
+	WebhookURLs string    `json:"webhook_urls"` // JSON array: [{name,url}]
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// FalsePositive represents a suppressed finding fingerprint.
+type FalsePositive struct {
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"user_id"`
+	Fingerprint string    `json:"fingerprint"` // "asset|title"
+	Asset       string    `json:"asset"`
+	Title       string    `json:"title"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// Schedule represents a recurring scan job.
+type Schedule struct {
+	ID        string     `json:"id"`
+	UserID    int64      `json:"user_id"`
+	Client    string     `json:"client"`
+	Targets   string     `json:"targets"`  // comma-separated
+	Modules   string     `json:"modules"`  // comma-separated
+	Options   string     `json:"options"`  // JSON blob
+	IntervalH int        `json:"interval_h"` // hours between runs
+	Enabled   bool       `json:"enabled"`
+	NextRun   time.Time  `json:"next_run"`
+	LastRun   *time.Time `json:"last_run,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 // Open initialises the SQLite database and runs migrations.
@@ -57,17 +92,17 @@ func (d *DB) Close() error { return d.conn.Close() }
 
 // migrate creates all tables if they don't exist.
 func (d *DB) migrate() error {
-	_, err := d.conn.Exec(`
-		PRAGMA journal_mode=WAL;
+	stmts := []string{
+		`PRAGMA journal_mode=WAL`,
 
-		CREATE TABLE IF NOT EXISTS users (
+		`CREATE TABLE IF NOT EXISTS users (
 			id            INTEGER PRIMARY KEY AUTOINCREMENT,
 			email         TEXT    NOT NULL UNIQUE,
 			password_hash TEXT    NOT NULL,
 			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
-		);
+		)`,
 
-		CREATE TABLE IF NOT EXISTS scan_jobs (
+		`CREATE TABLE IF NOT EXISTS scan_jobs (
 			id            TEXT PRIMARY KEY,
 			user_id       INTEGER NOT NULL REFERENCES users(id),
 			client        TEXT    NOT NULL,
@@ -82,12 +117,62 @@ func (d *DB) migrate() error {
 			max_severity  TEXT    DEFAULT '',
 			report_path   TEXT    DEFAULT '',
 			error_msg     TEXT    DEFAULT ''
-		);
+		)`,
 
-		CREATE INDEX IF NOT EXISTS scan_jobs_user_id ON scan_jobs(user_id);
-		CREATE INDEX IF NOT EXISTS scan_jobs_status   ON scan_jobs(status);
-	`)
-	return err
+		`CREATE INDEX IF NOT EXISTS scan_jobs_user_id ON scan_jobs(user_id)`,
+		`CREATE INDEX IF NOT EXISTS scan_jobs_status   ON scan_jobs(status)`,
+
+		`CREATE TABLE IF NOT EXISTS user_settings (
+			user_id       INTEGER PRIMARY KEY REFERENCES users(id),
+			shodan_key    TEXT    NOT NULL DEFAULT '',
+			github_token  TEXT    NOT NULL DEFAULT '',
+			webhook_urls  TEXT    NOT NULL DEFAULT '[]',
+			updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS false_positives (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id       INTEGER NOT NULL REFERENCES users(id),
+			fingerprint   TEXT    NOT NULL,
+			asset         TEXT    NOT NULL,
+			title         TEXT    NOT NULL,
+			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(user_id, fingerprint)
+		)`,
+
+		`CREATE INDEX IF NOT EXISTS fp_user_id ON false_positives(user_id)`,
+
+		`CREATE TABLE IF NOT EXISTS schedules (
+			id            TEXT    PRIMARY KEY,
+			user_id       INTEGER NOT NULL REFERENCES users(id),
+			client        TEXT    NOT NULL,
+			targets       TEXT    NOT NULL,
+			modules       TEXT    NOT NULL,
+			options       TEXT    NOT NULL DEFAULT '{}',
+			interval_h    INTEGER NOT NULL DEFAULT 24,
+			enabled       INTEGER NOT NULL DEFAULT 1,
+			next_run      DATETIME NOT NULL,
+			last_run      DATETIME,
+			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		`CREATE INDEX IF NOT EXISTS schedules_user_id  ON schedules(user_id)`,
+		`CREATE INDEX IF NOT EXISTS schedules_next_run ON schedules(next_run)`,
+	}
+
+	for _, stmt := range stmts {
+		if _, err := d.conn.Exec(stmt); err != nil {
+			return fmt.Errorf("migrate %q: %w", stmt[:min(40, len(stmt))], err)
+		}
+	}
+	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // ── Users ──────────────────────────────────────────────────────────────────────
@@ -209,4 +294,223 @@ func scanJobFromRow(row rowScanner) (*ScanJob, error) {
 		return nil, err
 	}
 	return j, nil
+}
+
+// ── User Settings ──────────────────────────────────────────────────────────────
+
+func (d *DB) GetUserSettings(userID int64) (*UserSettings, error) {
+	row := d.conn.QueryRow(
+		`SELECT user_id, shodan_key, github_token, webhook_urls, updated_at
+		 FROM user_settings WHERE user_id = ?`, userID,
+	)
+	s := &UserSettings{}
+	err := row.Scan(&s.UserID, &s.ShodanKey, &s.GitHubToken, &s.WebhookURLs, &s.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return &UserSettings{UserID: userID, WebhookURLs: "[]"}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (d *DB) UpsertUserSettings(s *UserSettings) error {
+	_, err := d.conn.Exec(
+		`INSERT INTO user_settings (user_id, shodan_key, github_token, webhook_urls, updated_at)
+		 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		 ON CONFLICT(user_id) DO UPDATE SET
+		   shodan_key   = excluded.shodan_key,
+		   github_token = excluded.github_token,
+		   webhook_urls = excluded.webhook_urls,
+		   updated_at   = CURRENT_TIMESTAMP`,
+		s.UserID, s.ShodanKey, s.GitHubToken, s.WebhookURLs,
+	)
+	return err
+}
+
+// ── False Positives ────────────────────────────────────────────────────────────
+
+// MakeFPFingerprint creates a stable fingerprint for an asset+title pair.
+func MakeFPFingerprint(asset, title string) string {
+	return strings.ToLower(asset) + "|" + strings.ToLower(title)
+}
+
+func (d *DB) ListFalsePositives(userID int64) ([]*FalsePositive, error) {
+	rows, err := d.conn.Query(
+		`SELECT id, user_id, fingerprint, asset, title, created_at
+		 FROM false_positives WHERE user_id = ? ORDER BY created_at DESC`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fps []*FalsePositive
+	for rows.Next() {
+		fp := &FalsePositive{}
+		if err := rows.Scan(&fp.ID, &fp.UserID, &fp.Fingerprint, &fp.Asset, &fp.Title, &fp.CreatedAt); err != nil {
+			return nil, err
+		}
+		fps = append(fps, fp)
+	}
+	return fps, rows.Err()
+}
+
+func (d *DB) AddFalsePositive(userID int64, asset, title string) (*FalsePositive, error) {
+	fp := &FalsePositive{
+		UserID:      userID,
+		Fingerprint: MakeFPFingerprint(asset, title),
+		Asset:       asset,
+		Title:       title,
+	}
+	res, err := d.conn.Exec(
+		`INSERT OR IGNORE INTO false_positives (user_id, fingerprint, asset, title)
+		 VALUES (?, ?, ?, ?)`,
+		fp.UserID, fp.Fingerprint, fp.Asset, fp.Title,
+	)
+	if err != nil {
+		return nil, err
+	}
+	fp.ID, _ = res.LastInsertId()
+	fp.CreatedAt = time.Now()
+	return fp, nil
+}
+
+func (d *DB) RemoveFalsePositive(userID int64, fingerprint string) error {
+	_, err := d.conn.Exec(
+		`DELETE FROM false_positives WHERE user_id = ? AND fingerprint = ?`,
+		userID, fingerprint,
+	)
+	return err
+}
+
+// GetFalsePositiveSet returns a set of fingerprints for the given user (for fast lookup).
+func (d *DB) GetFalsePositiveSet(userID int64) (map[string]struct{}, error) {
+	rows, err := d.conn.Query(
+		`SELECT fingerprint FROM false_positives WHERE user_id = ?`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	set := make(map[string]struct{})
+	for rows.Next() {
+		var fp string
+		if err := rows.Scan(&fp); err != nil {
+			return nil, err
+		}
+		set[fp] = struct{}{}
+	}
+	return set, rows.Err()
+}
+
+// ── Schedules ──────────────────────────────────────────────────────────────────
+
+func (d *DB) CreateSchedule(s *Schedule) error {
+	_, err := d.conn.Exec(
+		`INSERT INTO schedules (id, user_id, client, targets, modules, options, interval_h, enabled, next_run)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.ID, s.UserID, s.Client, s.Targets, s.Modules, s.Options, s.IntervalH, boolToInt(s.Enabled), s.NextRun,
+	)
+	return err
+}
+
+func (d *DB) ListSchedules(userID int64) ([]*Schedule, error) {
+	rows, err := d.conn.Query(
+		`SELECT id, user_id, client, targets, modules, options, interval_h, enabled, next_run, last_run, created_at
+		 FROM schedules WHERE user_id = ? ORDER BY created_at DESC`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var schedules []*Schedule
+	for rows.Next() {
+		s, err := scheduleFromRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		schedules = append(schedules, s)
+	}
+	return schedules, rows.Err()
+}
+
+func (d *DB) GetSchedule(id string, userID int64) (*Schedule, error) {
+	row := d.conn.QueryRow(
+		`SELECT id, user_id, client, targets, modules, options, interval_h, enabled, next_run, last_run, created_at
+		 FROM schedules WHERE id = ? AND user_id = ?`, id, userID,
+	)
+	return scheduleFromRow(row)
+}
+
+func (d *DB) UpdateScheduleEnabled(id string, userID int64, enabled bool) error {
+	_, err := d.conn.Exec(
+		`UPDATE schedules SET enabled = ? WHERE id = ? AND user_id = ?`,
+		boolToInt(enabled), id, userID,
+	)
+	return err
+}
+
+func (d *DB) UpdateScheduleNextRun(id string, nextRun time.Time, lastRun time.Time) error {
+	_, err := d.conn.Exec(
+		`UPDATE schedules SET next_run = ?, last_run = ? WHERE id = ?`,
+		nextRun, lastRun, id,
+	)
+	return err
+}
+
+func (d *DB) DeleteSchedule(id string, userID int64) error {
+	_, err := d.conn.Exec(
+		`DELETE FROM schedules WHERE id = ? AND user_id = ?`, id, userID,
+	)
+	return err
+}
+
+// GetDueSchedules returns enabled schedules whose next_run is in the past.
+func (d *DB) GetDueSchedules() ([]*Schedule, error) {
+	rows, err := d.conn.Query(
+		`SELECT id, user_id, client, targets, modules, options, interval_h, enabled, next_run, last_run, created_at
+		 FROM schedules WHERE enabled = 1 AND next_run <= ?`, time.Now(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var schedules []*Schedule
+	for rows.Next() {
+		s, err := scheduleFromRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		schedules = append(schedules, s)
+	}
+	return schedules, rows.Err()
+}
+
+type scheduleRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scheduleFromRow(row scheduleRowScanner) (*Schedule, error) {
+	s := &Schedule{}
+	var enabled int
+	err := row.Scan(
+		&s.ID, &s.UserID, &s.Client, &s.Targets, &s.Modules, &s.Options,
+		&s.IntervalH, &enabled, &s.NextRun, &s.LastRun, &s.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	s.Enabled = enabled == 1
+	return s, nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

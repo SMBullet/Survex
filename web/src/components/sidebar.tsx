@@ -9,7 +9,8 @@ import type { ScanJob } from "@/lib/api";
 import {
   Shield, LayoutDashboard, Plus, LogOut,
   Cloud, ChevronDown, Server, Database, Cpu,
-  Github, GitBranch, Radar,
+  Github, GitBranch, Radar, CalendarClock,
+  Settings, Globe,
 } from "lucide-react";
 
 // ── Nav item ─────────────────────────────────────────────────────────────────
@@ -116,6 +117,16 @@ export function Sidebar() {
         <div className="h-px mx-1 bg-white/[0.05]" />
 
         <div>
+          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Intelligence</p>
+          <div className="space-y-0.5">
+            <NavItem href="/assets"    icon={<Database className="h-3.5 w-3.5" />}     label="Asset Inventory" active={sw("/assets")} />
+            <NavItem href="/schedules" icon={<CalendarClock className="h-3.5 w-3.5" />} label="Schedules"      active={sw("/schedules")} />
+          </div>
+        </div>
+
+        <div className="h-px mx-1 bg-white/[0.05]" />
+
+        <div>
           <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Discovery</p>
           <div className="space-y-0.5">
 
@@ -144,6 +155,16 @@ export function Sidebar() {
             <NavItem href="/gitlab" icon={<GitBranch className="h-3.5 w-3.5" />} label="GitLab" active={is("/gitlab")} />
           </div>
         </div>
+
+        <div className="h-px mx-1 bg-white/[0.05]" />
+
+        <div>
+          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Platform</p>
+          <div className="space-y-0.5">
+            <NavItem href="/settings" icon={<Settings className="h-3.5 w-3.5" />} label="Settings" active={sw("/settings")} />
+          </div>
+        </div>
+
       </nav>
 
       {/* Footer */}

@@ -19,6 +19,7 @@ import (
 	"github.com/SMBullet/Survex/internal/queue"
 	"github.com/SMBullet/Survex/internal/risk"
 	"github.com/SMBullet/Survex/internal/scan"
+	"github.com/SMBullet/Survex/internal/scheduler"
 	"github.com/SMBullet/Survex/internal/store"
 	"github.com/SMBullet/Survex/internal/tools"
 	"github.com/spf13/cobra"
@@ -867,6 +868,10 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	q := queue.New(database)
 
+	// Start the recurring scan scheduler.
+	sched := scheduler.New(database, q, api.RunScheduledJob)
+	sched.Start()
+
 	app := api.New(database, q, frontendDir)
 
 	// Graceful shutdown on Ctrl+C / SIGTERM
@@ -875,6 +880,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	go func() {
 		<-sigCh
 		fmt.Fprintln(os.Stderr, "\n[survex] shutting down…")
+		sched.Stop()
 		_ = app.Shutdown()
 	}()
 

@@ -64,6 +64,27 @@ func New(database *db.DB, q *queue.Queue, frontendDir string) *fiber.App {
 	// WebSocket for live scan logs (auth handled by jwtWsUpgradeMiddleware above)
 	app.Get("/api/v1/scans/:id/logs", handleScanLogs(database, q))
 
+	// Settings (protected)
+	settings := v1.Group("/settings", jwtMiddleware)
+	settings.Get("/", handleGetSettings(database))
+	settings.Put("/", handlePutSettings(database))
+
+	// False Positives (protected)
+	fps := v1.Group("/false-positives", jwtMiddleware)
+	fps.Get("/", handleListFPs(database))
+	fps.Post("/", handleAddFP(database))
+	fps.Delete("/:fingerprint", handleRemoveFP(database))
+
+	// Schedules (protected)
+	scheduleRoutes := v1.Group("/schedules", jwtMiddleware)
+	scheduleRoutes.Get("/", handleListSchedules(database))
+	scheduleRoutes.Post("/", handleCreateSchedule(database, q))
+	scheduleRoutes.Put("/:id", handleToggleSchedule(database))
+	scheduleRoutes.Delete("/:id", handleDeleteSchedule(database))
+
+	// Assets (protected)
+	v1.Get("/assets", jwtMiddleware, handleListAssets(database))
+
 	// ── Frontend static files ────────────────────────────────────────────────
 	if frontendDir != "" {
 		app.Static("/", frontendDir, fiber.Static{

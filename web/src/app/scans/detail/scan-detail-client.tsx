@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api, ScanJob, Technology, Finding } from "@/lib/api";
@@ -11,40 +11,71 @@ import {
   Layers, CheckCircle2, Circle, Loader2, XCircle,
   AlertTriangle, Cpu, Zap, ChevronRight, Activity,
   Shield, Globe, Terminal, ShieldAlert, ChevronDown,
+  Search, Download, Ban, Undo2, Filter,
 } from "lucide-react";
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
-interface Step { id: string; label: string; pattern: RegExp; status: "pending" | "active" | "done"; }
+interface Step {
+  id: string;
+  label: string;
+  pattern: RegExp;
+  countPattern?: RegExp;
+  status: "pending" | "active" | "done";
+  count?: number;
+}
 
-const STEP_DEFS: Omit<Step, "status">[] = [
-  { id: "start",  label: "Initializing",   pattern: /scan started/ },
-  { id: "subs",   label: "Subdomain Enum", pattern: /subfinder|amass|crts|dnsbrute|certificate trans/i },
-  { id: "dns",    label: "DNS Resolution", pattern: /\bdns\b.*resolv|resolv.*\bdns\b|\[survex\].*dns/i },
-  { id: "ports",  label: "Port Scanning",  pattern: /nmap|port.scan/i },
-  { id: "http",   label: "HTTP Probing",   pattern: /probing http|httpx/i },
-  { id: "tech",   label: "Tech Detection", pattern: /fingerprinting tech|techdetect:|cms-scan:/i },
-  { id: "tls",    label: "TLS Analysis",   pattern: /\btls\b|analyzing tls/i },
-  { id: "web",    label: "Web Security",   pattern: /waf|cors|cookie|security header/i },
-  { id: "vuln",   label: "Vuln Scanning",  pattern: /nuclei|graphql|api.endpoint|swagger|ffuf|dalfox|sqlmap|open redirect|wpscan|droopescan/i },
-  { id: "done",   label: "Complete",       pattern: /scan complete|scan.*done|\[queue\].*complete/ },
+const STEP_DEFS: Omit<Step, "status" | "count">[] = [
+  { id: "start",  label: "Initializing",   pattern: /scan started/,                                      countPattern: undefined },
+  { id: "subs",   label: "Subdomain Enum", pattern: /subfinder|amass|crts|dnsbrute|certificate trans/i,  countPattern: /found (\d+) subdomain|(\d+) host[s]? found|(\d+) unique/i },
+  { id: "dns",    label: "DNS Resolution", pattern: /\bdns\b.*resolv|resolv.*\bdns\b|\[survex\].*dns/i,  countPattern: /resolved (\d+)|(\d+) host[s]? resolved/i },
+  { id: "ports",  label: "Port Scanning",  pattern: /nmap|port.scan/i,                                   countPattern: /(\d+) open port|(\d+) service[s]? found/i },
+  { id: "http",   label: "HTTP Probing",   pattern: /probing http|httpx/i,                               countPattern: /(\d+) live|(\d+) http service/i },
+  { id: "tech",   label: "Tech Detection", pattern: /fingerprinting tech|techdetect:|cms-scan:/i,         countPattern: /(\d+) technolog/i },
+  { id: "tls",    label: "TLS Analysis",   pattern: /\btls\b|analyzing tls/i,                            countPattern: /(\d+) cert|(\d+) tls/i },
+  { id: "web",    label: "Web Security",   pattern: /waf|cors|cookie|security header/i,                  countPattern: /(\d+) issue|(\d+) finding/i },
+  { id: "vuln",   label: "Vuln Scanning",  pattern: /nuclei|graphql|api.endpoint|swagger|ffuf|dalfox|sqlmap|open redirect|wpscan|droopescan/i, countPattern: /(\d+) finding|(\d+) vuln/i },
+  { id: "done",   label: "Complete",       pattern: /scan complete|scan.*done|\[queue\].*complete/,       countPattern: undefined },
 ];
 
+function extractFirstNumber(line: string, pattern: RegExp): number | undefined {
+  const m = line.match(pattern);
+  if (!m) return undefined;
+  for (let i = 1; i < m.length; i++) {
+    if (m[i] !== undefined) return parseInt(m[i], 10);
+  }
+  return undefined;
+}
+
 function buildSteps(logs: string[]): Step[] {
-  const reached = new Set<string>();
+  const reached    = new Set<string>();
+  const counts     = new Map<string, number>();
+
   for (const line of logs) {
     for (const def of STEP_DEFS) {
-      if (def.pattern.test(line)) reached.add(def.id);
+      if (def.pattern.test(line)) {
+        reached.add(def.id);
+        if (def.countPattern) {
+          const n = extractFirstNumber(line, def.countPattern);
+          if (n !== undefined) {
+            const cur = counts.get(def.id) ?? 0;
+            counts.set(def.id, Math.max(cur, n));
+          }
+        }
+      }
     }
   }
+
   const ids = STEP_DEFS.map(d => d.id);
   let lastIdx = -1;
   for (let i = ids.length - 1; i >= 0; i--) {
     if (reached.has(ids[i])) { lastIdx = i; break; }
   }
+
   return STEP_DEFS.map((def, i) => ({
     ...def,
     status: reached.has(def.id) ? (i === lastIdx ? "active" : "done") : "pending",
+    count:  counts.get(def.id),
   }));
 }
 
@@ -152,6 +183,32 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",
 };
 
+const SEV_ORDER = ["critical", "high", "medium", "low", "info", ""];
+
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+function exportJSON(findings: Finding[], filename: string) {
+  const blob = new Blob([JSON.stringify(findings, null, 2)], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV(findings: Finding[], filename: string) {
+  const header = ["Title", "Asset", "Port", "Severity", "CVSS Score", "Detail", "First Seen"];
+  const rows = findings.map(f => [
+    f.title, f.asset, f.port?.toString() ?? "", f.severity,
+    f.cvss_score?.toFixed(1) ?? "", f.detail ?? "", f.first_seen,
+  ]);
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ScanDetailClient() {
@@ -167,6 +224,16 @@ export default function ScanDetailClient() {
   const [technologies, setTechnologies] = useState<Technology[]>([]);
   const [findings, setFindings]         = useState<Finding[]>([]);
   const [expandedFinding, setExpandedFinding] = useState<number | null>(null);
+
+  // False positive tracking
+  const [fpSet, setFpSet]       = useState<Set<string>>(new Set());
+  const [markingFP, setMarkingFP] = useState<string | null>(null);
+
+  // Findings filter/search
+  const [searchQuery, setSearchQuery]     = useState("");
+  const [sevFilter,   setSevFilter]       = useState<string | null>(null);
+  const [showFPs,     setShowFPs]         = useState(false);
+
   const logRef = useRef<HTMLDivElement>(null);
   const wsRef  = useRef<WebSocket | null>(null);
 
@@ -188,6 +255,13 @@ export default function ScanDetailClient() {
     catch { /* no-op */ }
   }, [id]);
 
+  const fetchFPs = useCallback(async () => {
+    try {
+      const fps = await api.falsePositives.list();
+      setFpSet(new Set((fps ?? []).map(fp => fp.fingerprint)));
+    } catch { /* no-op */ }
+  }, []);
+
   const connectWs = useCallback(() => {
     if (!id || wsRef.current) return;
     const ws = new WebSocket(api.scans.logsWsUrl(id));
@@ -201,6 +275,7 @@ export default function ScanDetailClient() {
   useEffect(() => { if (!loading && !user) router.replace("/login"); }, [user, loading, router]);
   useEffect(() => {
     if (user && id) {
+      fetchFPs();
       fetchScan().then(d => {
         connectWs();
         if (d && ["done", "failed", "cancelled"].includes(d.status)) {
@@ -236,6 +311,22 @@ export default function ScanDetailClient() {
     finally { setCancelling(false); }
   };
 
+  // Mark / unmark finding as false positive
+  const handleToggleFP = async (f: Finding) => {
+    const fp = f.asset.toLowerCase() + "|" + f.title.toLowerCase();
+    setMarkingFP(fp);
+    try {
+      if (fpSet.has(fp)) {
+        await api.falsePositives.remove(fp);
+        setFpSet(prev => { const s = new Set(prev); s.delete(fp); return s; });
+      } else {
+        await api.falsePositives.add(f.asset, f.title);
+        setFpSet(prev => new Set([...prev, fp]));
+      }
+    } catch { /* ignore */ }
+    finally { setMarkingFP(null); }
+  };
+
   if (loading || !user) return null;
 
   const steps       = buildSteps(logs);
@@ -252,6 +343,41 @@ export default function ScanDetailClient() {
   const completedSteps = steps.filter(s => s.status === "done").length;
   const totalSteps     = steps.length;
   const progress       = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  // ── Filtered findings ──────────────────────────────────────────────────────
+  const filteredFindings = useMemo(() => {
+    let list = findings;
+    if (!showFPs) {
+      list = list.filter(f => {
+        const fp = f.asset.toLowerCase() + "|" + f.title.toLowerCase();
+        return !fpSet.has(fp);
+      });
+    }
+    if (sevFilter) list = list.filter(f => f.severity === sevFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(f =>
+        f.title.toLowerCase().includes(q) ||
+        f.asset.toLowerCase().includes(q) ||
+        (f.detail ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [findings, fpSet, showFPs, sevFilter, searchQuery]);
+
+  const fpCount = useMemo(() => findings.filter(f => {
+    const fp = f.asset.toLowerCase() + "|" + f.title.toLowerCase();
+    return fpSet.has(fp);
+  }).length, [findings, fpSet]);
+
+  const sevCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const f of findings) {
+      const fp = f.asset.toLowerCase() + "|" + f.title.toLowerCase();
+      if (!fpSet.has(fp)) map[f.severity] = (map[f.severity] ?? 0) + 1;
+    }
+    return map;
+  }, [findings, fpSet]);
 
   return (
     <AppShell>
@@ -381,15 +507,26 @@ export default function ScanDetailClient() {
                         <div className={`w-px my-1 flex-1 min-h-[14px] ${step.status === "done" ? "bg-emerald-500/25" : "bg-white/[0.05]"}`} />
                       )}
                     </div>
-                    {/* Label */}
+                    {/* Label + count */}
                     <div className="pb-2.5 pt-0.5 min-w-0">
-                      <p className={`text-[13px] leading-tight ${
-                        step.status === "done"   ? "text-zinc-300 font-medium" :
-                        step.status === "active" ? "text-blue-400 font-semibold" :
-                                                   "text-zinc-700"
-                      }`}>
-                        {step.label}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-[13px] leading-tight ${
+                          step.status === "done"   ? "text-zinc-300 font-medium" :
+                          step.status === "active" ? "text-blue-400 font-semibold" :
+                                                     "text-zinc-700"
+                        }`}>
+                          {step.label}
+                        </p>
+                        {step.count !== undefined && step.count > 0 && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tabular-nums ${
+                            step.status === "active"
+                              ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                              : "border-emerald-500/25 bg-emerald-500/8 text-emerald-500"
+                          }`}>
+                            {step.count}
+                          </span>
+                        )}
+                      </div>
                       {/* CMS tool routing under Tech Detection */}
                       {step.id === "tech" && step.status === "done" && detectedCMSNames.length > 0 && (
                         <div className="mt-1 space-y-0.5">
@@ -539,8 +676,6 @@ export default function ScanDetailClient() {
 
           {/* ── Findings panel ────────────────────────────────────── */}
           {findings.length > 0 && (() => {
-            const sevCount = (s: string) => findings.filter(f => f.severity === s).length;
-            const cvssCount = findings.filter(f => f.cvss_score && f.cvss_score > 0).length;
             const SEV_PILLS = [
               { s: "critical", label: "CRIT",   cls: "bg-red-500/15 text-red-400 border-red-500/30" },
               { s: "high",     label: "HIGH",   cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
@@ -548,6 +683,9 @@ export default function ScanDetailClient() {
               { s: "low",      label: "LOW",    cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
               { s: "info",     label: "INFO",   cls: "bg-zinc-700/30 text-zinc-500 border-zinc-600/30" },
             ];
+            const cvssCount = filteredFindings.filter(f => f.cvss_score && f.cvss_score > 0).length;
+            const scanName  = scan?.client ?? id;
+
             return (
               <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
 
@@ -556,48 +694,123 @@ export default function ScanDetailClient() {
                   <div className="flex items-center gap-2.5">
                     <ShieldAlert className="h-4 w-4 text-orange-400" />
                     <span className="text-[13px] font-semibold text-white">Findings</span>
+                    <span className="text-[11px] text-zinc-600">
+                      {filteredFindings.length}{findings.length !== filteredFindings.length ? ` of ${findings.length}` : ""}
+                    </span>
                   </div>
-                  {/* Per-severity pill counts */}
+
+                  {/* Per-severity pill counts (clickable filter) */}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {SEV_PILLS.map(({ s, label, cls }) => {
-                      const n = sevCount(s);
+                      const n = sevCounts[s] ?? 0;
                       if (!n) return null;
+                      const isActive = sevFilter === s;
                       return (
-                        <span key={s} className={`rounded border px-2 py-0.5 text-[10px] font-bold tabular-nums ${cls}`}>
+                        <button
+                          key={s}
+                          onClick={() => setSevFilter(isActive ? null : s)}
+                          className={`rounded border px-2 py-0.5 text-[10px] font-bold tabular-nums transition-all ${cls} ${isActive ? "ring-1 ring-current ring-offset-0 opacity-100" : "opacity-80 hover:opacity-100"}`}
+                        >
                           {n} {label}
-                        </span>
+                        </button>
                       );
                     })}
                   </div>
+
+                  {/* FP toggle */}
+                  {fpCount > 0 && (
+                    <button
+                      onClick={() => setShowFPs(s => !s)}
+                      className={`flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-bold transition-all ${
+                        showFPs
+                          ? "border-zinc-500/40 bg-zinc-500/15 text-zinc-400"
+                          : "border-zinc-700/30 bg-zinc-800/30 text-zinc-600 hover:text-zinc-400"
+                      }`}
+                    >
+                      {showFPs ? <Undo2 className="h-2.5 w-2.5" /> : <Ban className="h-2.5 w-2.5" />}
+                      {fpCount} FP
+                    </button>
+                  )}
+
                   {cvssCount > 0 && (
-                    <span className="ml-auto flex items-center gap-1 text-[10px] text-zinc-600 font-mono">
+                    <span className="flex items-center gap-1 text-[10px] text-zinc-600 font-mono">
                       <Shield className="h-3 w-3" />
                       {cvssCount} CVSS scored
                     </span>
                   )}
+
+                  {/* Export buttons */}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <button
+                      onClick={() => exportJSON(filteredFindings, `${scanName}-findings.json`)}
+                      className="flex items-center gap-1.5 rounded border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                    >
+                      <Download className="h-3 w-3" />
+                      JSON
+                    </button>
+                    <button
+                      onClick={() => exportCSV(filteredFindings, `${scanName}-findings.csv`)}
+                      className="flex items-center gap-1.5 rounded border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                    >
+                      <Download className="h-3 w-3" />
+                      CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search + filter bar */}
+                <div className="flex items-center gap-3 px-5 py-2.5 border-b border-white/[0.04] bg-white/[0.005]">
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-700" />
+                    <input
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Search title, asset, detail…"
+                      className="w-full rounded-md border border-white/[0.06] bg-[#060c18] pl-8 pr-3 py-1.5 text-[11px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-500/40 transition-all"
+                    />
+                  </div>
+                  {(sevFilter || searchQuery) && (
+                    <button
+                      onClick={() => { setSevFilter(null); setSearchQuery(""); }}
+                      className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+                    >
+                      <Filter className="h-3 w-3" />
+                      Clear
+                    </button>
+                  )}
+                  <span className="ml-auto text-[10px] text-zinc-700">
+                    {filteredFindings.length} shown
+                  </span>
                 </div>
 
                 {/* Column headers */}
-                <div className="hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_20px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
-                  {["Finding", "Asset", "Risk", ""].map(h => (
+                <div className="hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
+                  {["Finding", "Asset", "Risk", "Action", ""].map(h => (
                     <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
                   ))}
                 </div>
 
                 {/* Rows */}
                 <div className="divide-y divide-white/[0.03]">
-                  {findings.map((f, idx) => {
+                  {filteredFindings.length === 0 ? (
+                    <div className="py-8 text-center text-[12px] text-zinc-700">
+                      {(sevFilter || searchQuery) ? "No findings match your filter." : "No findings to display."}
+                    </div>
+                  ) : filteredFindings.map((f, idx) => {
                     const isOpen = expandedFinding === idx;
+                    const fpKey  = f.asset.toLowerCase() + "|" + f.title.toLowerCase();
+                    const isFP   = fpSet.has(fpKey);
+                    const isMarkingThis = markingFP === fpKey;
                     const accent =
                       f.severity === "critical" ? "border-l-[2px] border-l-red-500/60" :
                       f.severity === "high"     ? "border-l-[2px] border-l-orange-500/55" :
                       f.severity === "medium"   ? "border-l-[2px] border-l-yellow-500/40" : "";
                     return (
-                      <div key={idx}>
+                      <div key={idx} className={isFP ? "opacity-40" : ""}>
                         {/* Desktop row */}
                         <div
                           onClick={() => setExpandedFinding(isOpen ? null : idx)}
-                          className={`hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_20px] gap-0 px-5 py-3.5 cursor-pointer hover:bg-white/[0.02] group transition-colors ${accent}`}
+                          className={`hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-3.5 cursor-pointer hover:bg-white/[0.02] group transition-colors ${accent}`}
                         >
                           {/* Title */}
                           <div className="flex items-center gap-2 min-w-0 pr-4">
@@ -616,6 +829,27 @@ export default function ScanDetailClient() {
                           <div className="flex items-center gap-2">
                             <SeverityBadge severity={f.severity} />
                             <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
+                          </div>
+                          {/* FP button */}
+                          <div className="flex items-center" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleToggleFP(f)}
+                              disabled={isMarkingThis}
+                              title={isFP ? "Remove false positive mark" : "Mark as false positive"}
+                              className={`flex items-center gap-1 rounded border px-2 py-1 text-[9px] font-bold transition-all ${
+                                isFP
+                                  ? "border-zinc-600/40 bg-zinc-700/20 text-zinc-500 hover:border-red-500/30 hover:bg-red-500/8 hover:text-red-400"
+                                  : "border-white/[0.06] bg-transparent text-zinc-700 hover:border-orange-500/30 hover:bg-orange-500/8 hover:text-orange-400"
+                              }`}
+                            >
+                              {isMarkingThis ? (
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              ) : isFP ? (
+                                <><Undo2 className="h-2.5 w-2.5" /> FP</>
+                              ) : (
+                                <><Ban className="h-2.5 w-2.5" /> FP</>
+                              )}
+                            </button>
                           </div>
                           {/* Chevron */}
                           <div className="flex items-center justify-end">
@@ -669,6 +903,15 @@ export default function ScanDetailClient() {
                         {isOpen && (
                           <div className="sm:hidden mx-4 mb-2 rounded-lg border border-white/[0.06] bg-[#060c18]/80 p-3">
                             {f.detail && <p className="text-[10px] font-mono text-zinc-500 leading-relaxed break-all">{f.detail}</p>}
+                            <div className="flex items-center gap-2 mt-2">
+                              <button
+                                onClick={e => { e.stopPropagation(); handleToggleFP(f); }}
+                                disabled={isMarkingThis}
+                                className="flex items-center gap-1 rounded border border-white/[0.06] px-2 py-1 text-[9px] font-bold text-zinc-600 hover:text-orange-400 hover:border-orange-500/30 transition-all"
+                              >
+                                {isFP ? <><Undo2 className="h-2.5 w-2.5" /> Unmark FP</> : <><Ban className="h-2.5 w-2.5" /> Mark FP</>}
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
