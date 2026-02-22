@@ -9,10 +9,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AlertCircle, Globe, Shield, Server, Zap, Eye, Cloud, Activity, ChevronRight, Check,
+  AlertCircle, Globe, Shield, Server, Zap, Eye, Cloud, Activity, ChevronRight, Check, Target,
 } from "lucide-react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
+
+// Nuclei template categories — maps UI label to nuclei template path.
+// Order follows severity/impact: CVEs first, then discovery, then detection.
+const NUCLEI_CATEGORIES = [
+  { path: "http/cves/",             label: "CVEs",               desc: "Log4j, Spring4Shell, MOVEit, Confluence…", on: true  },
+  { path: "http/vulnerabilities/",  label: "Generic Vulns",      desc: "XSS, SQLi, SSRF, path traversal, RCE",    on: true  },
+  { path: "http/takeovers/",        label: "Takeovers",          desc: "Dangling CNAME → service takeover",        on: true  },
+  { path: "http/exposures/",        label: "File Exposures",     desc: ".env, SSH keys, .git/config, Dockerfiles", on: true  },
+  { path: "http/exposures/tokens/", label: "Token Exposure",     desc: "API keys and secrets in HTTP responses",   on: true  },
+  { path: "http/file-inclusion/",   label: "File Inclusion",     desc: "LFI / path traversal checks",              on: true  },
+  { path: "http/exposed-panels/",   label: "Admin Panels",       desc: "Exposed management interfaces",            on: true  },
+  { path: "http/default-logins/",   label: "Default Creds",      desc: "190+ vendors: Jira, Jenkins, Grafana…",   on: true  },
+  { path: "http/misconfiguration/", label: "Misconfigs",         desc: "CORS, debug endpoints, open redirects",    on: true  },
+  { path: "ssl/",                   label: "TLS/SSL",            desc: "Deprecated versions, weak ciphers, expired certs", on: true },
+  { path: "dns/",                   label: "DNS",                desc: "Azure/ElasticBeanstalk takeovers, DNS misconfigs", on: true },
+  { path: "cloud/",                 label: "Cloud",              desc: "S3, GCS, Azure bucket misconfigurations",  on: true  },
+  { path: "network/default-login/", label: "Network Creds",      desc: "Redis, FTP, MSSQL, PostgreSQL, SMTP",     on: true  },
+  { path: "network/misconfig/",     label: "Network Misconfigs", desc: "Exposed memcached, open proxies",          on: true  },
+  { path: "network/exposures/",     label: "Network Exposures",  desc: "Sensitive data over network protocols",    on: true  },
+  { path: "http/technologies/",     label: "Tech Detection",     desc: "Technology fingerprinting (noisy, info)",  on: false },
+  { path: "network/detection/",     label: "Network Detection",  desc: "Service fingerprinting over network",      on: false },
+];
+
+const DEFAULT_NUCLEI_CATEGORIES = new Set(
+  NUCLEI_CATEGORIES.filter(c => c.on).map(c => c.path)
+);
+
+const NUCLEI_SEVERITIES = [
+  { value: "critical", color: "text-red-400    border-red-500/30    bg-red-500/8"    },
+  { value: "high",     color: "text-orange-400 border-orange-500/30 bg-orange-500/8" },
+  { value: "medium",   color: "text-yellow-400 border-yellow-500/30 bg-yellow-500/8" },
+  { value: "low",      color: "text-blue-400   border-blue-500/30   bg-blue-500/8"   },
+  { value: "info",     color: "text-zinc-400   border-zinc-500/30   bg-zinc-700/20"  },
+];
+const DEFAULT_NUCLEI_SEVERITIES = new Set(["critical", "high", "medium", "info"]);
 
 const MODULE_GROUPS = [
   {
@@ -146,10 +181,12 @@ export default function NewScanPage() {
   const [ports, setPorts]           = useState("top-1000");
   const [noSubs, setNoSubs]         = useState(false);
   const [passive, setPassive]       = useState(false);
-  const [rate, setRate]             = useState(150);
-  const [threads, setThreads]       = useState(50);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState("");
+  const [rate, setRate]                         = useState(150);
+  const [threads, setThreads]                   = useState(50);
+  const [nucleiSeverities, setNucleiSeverities] = useState<Set<string>>(DEFAULT_NUCLEI_SEVERITIES);
+  const [nucleiCategories, setNucleiCategories] = useState<Set<string>>(DEFAULT_NUCLEI_CATEGORIES);
+  const [submitting, setSubmitting]             = useState(false);
+  const [error, setError]                       = useState("");
 
   if (!loading && !user) { router.replace("/login"); return null; }
 
@@ -167,13 +204,29 @@ export default function NewScanPage() {
     const isCustom = profile === "custom";
     const modules  = isCustom ? (selected.size > 0 ? [...selected] : ["httpx","tls","headers"]) : [];
 
+    // Determine if nuclei is in the active module set
+    const activeModules = isCustom ? modules : currentProfile.modules;
+    const nucleiActive  = activeModules.includes("nuclei");
+
+    // Build nuclei options — only send when nuclei is active
+    const nucleiOpts: Record<string, unknown> = {};
+    if (nucleiActive) {
+      // Severity — only pass when different from default (critical,high,medium,info)
+      const sevList = NUCLEI_SEVERITIES.map(s => s.value).filter(s => nucleiSeverities.has(s));
+      if (sevList.join(",") !== "critical,high,medium,info") {
+        nucleiOpts.nuclei_severity = sevList.join(",");
+      }
+      // Template categories — pass selected list (backend uses custom list when non-empty)
+      nucleiOpts.nuclei_templates = [...nucleiCategories];
+    }
+
     setSubmitting(true);
     try {
       const job = await api.scans.create({
         client: client || targets[0],
         targets,
         modules,
-        options: { no_subs: noSubs, passive, ports, profile: isCustom ? "" : profile, rate, threads },
+        options: { no_subs: noSubs, passive, ports, profile: isCustom ? "" : profile, rate, threads, ...nucleiOpts },
       });
       router.push(`/scans/detail?id=${job.id}`);
     } catch (err: unknown) {
@@ -184,6 +237,17 @@ export default function NewScanPage() {
 
   // Active module count for display
   const activeModuleCount = profile === "custom" ? selected.size : currentProfile.modules.length;
+
+  // Is nuclei part of the current scan?
+  const nucleiActive = profile === "custom"
+    ? selected.has("nuclei")
+    : currentProfile.modules.includes("nuclei");
+
+  const toggleSeverity = (v: string) =>
+    setNucleiSeverities(prev => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
+
+  const toggleCategory = (path: string) =>
+    setNucleiCategories(prev => { const n = new Set(prev); n.has(path) ? n.delete(path) : n.add(path); return n; });
 
   return (
     <AppShell>
@@ -436,6 +500,94 @@ export default function NewScanPage() {
                 </div>
               </div>
             </section>
+
+            {/* ── Nuclei Configuration ──────────────────────────────────── */}
+            {nucleiActive && (
+              <section className="rounded-xl border border-red-500/15 bg-[#0a1628]/70 overflow-hidden">
+                <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+                  <Target className="h-4 w-4 text-red-400" />
+                  <span className="text-[13px] font-semibold text-white">Nuclei Configuration</span>
+                  <span className="ml-2 text-[11px] text-zinc-600">
+                    {nucleiCategories.size} template categor{nucleiCategories.size === 1 ? "y" : "ies"} · {nucleiSeverities.size} severit{nucleiSeverities.size === 1 ? "y" : "ies"}
+                  </span>
+                </div>
+                <div className="p-5 space-y-5">
+
+                  {/* Severity */}
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Severity Levels</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {NUCLEI_SEVERITIES.map(s => {
+                        const on = nucleiSeverities.has(s.value);
+                        return (
+                          <button
+                            key={s.value}
+                            type="button"
+                            onClick={() => toggleSeverity(s.value)}
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium capitalize transition-all ${
+                              on
+                                ? s.color
+                                : "border-white/[0.07] bg-white/[0.02] text-zinc-600 hover:text-zinc-400 hover:bg-white/5"
+                            }`}
+                          >
+                            <div className={`h-1.5 w-1.5 rounded-full ${on ? "bg-current" : "bg-zinc-700"}`} />
+                            {s.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Template categories */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Template Categories</Label>
+                      <div className="flex gap-1.5">
+                        <button type="button" onClick={() => setNucleiCategories(new Set(NUCLEI_CATEGORIES.map(c => c.path)))}
+                          className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+                          All
+                        </button>
+                        <button type="button" onClick={() => setNucleiCategories(DEFAULT_NUCLEI_CATEGORIES)}
+                          className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+                          Default
+                        </button>
+                        <button type="button" onClick={() => setNucleiCategories(new Set())}
+                          className="rounded px-2 py-1 text-[11px] text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-colors">
+                          None
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                      {NUCLEI_CATEGORIES.map(cat => {
+                        const on = nucleiCategories.has(cat.path);
+                        return (
+                          <label
+                            key={cat.path}
+                            onClick={() => toggleCategory(cat.path)}
+                            className={`flex items-start gap-3 rounded-lg border p-2.5 cursor-pointer transition-all ${
+                              on
+                                ? "border-red-500/30 bg-red-500/5 text-white"
+                                : "border-white/[0.06] hover:border-white/15 text-zinc-500 hover:text-zinc-300"
+                            }`}
+                          >
+                            <div className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded border flex items-center justify-center transition-all ${
+                              on ? "bg-red-500 border-red-500" : "border-white/20 bg-white/5"
+                            }`}>
+                              {on && <Check className="h-2 w-2 text-white" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[12px] font-medium">{cat.label}</p>
+                              <p className="text-[10px] text-zinc-600 mt-0.5 leading-snug">{cat.desc}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+              </section>
+            )}
 
             {/* Error */}
             {error && (

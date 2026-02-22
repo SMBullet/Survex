@@ -27,16 +27,21 @@ type createScanReq struct {
 }
 
 type scanOpts struct {
-	NoSubs       bool   `json:"no_subs"`
-	Passive      bool   `json:"passive"`
-	Ports        string `json:"ports"`
-	Profile      string `json:"profile"`
-	Rate         int    `json:"rate"`
-	Threads      int    `json:"threads"`
-	Timeout      int    `json:"timeout"`
-	Proxy        string `json:"proxy"`
-	GitHubToken  string `json:"github_token"`
-	ShodanKey    string `json:"shodan_key"`
+	NoSubs       bool     `json:"no_subs"`
+	Passive      bool     `json:"passive"`
+	Ports        string   `json:"ports"`
+	Profile      string   `json:"profile"`
+	Rate         int      `json:"rate"`
+	Threads      int      `json:"threads"`
+	Timeout      int      `json:"timeout"`
+	Proxy        string   `json:"proxy"`
+	GitHubToken  string   `json:"github_token"`
+	ShodanKey    string   `json:"shodan_key"`
+	// Nuclei configuration — all optional; empty means use server defaults.
+	NucleiSeverity  string   `json:"nuclei_severity"`  // e.g. "critical,high,medium"
+	NucleiTags      []string `json:"nuclei_tags"`      // include these tags
+	NucleiExclude   []string `json:"nuclei_exclude"`   // exclude these tags
+	NucleiTemplates []string `json:"nuclei_templates"` // template dirs to run (overrides defaults when set)
 }
 
 // handleListScans returns the authenticated user's scan history.
@@ -91,6 +96,12 @@ func handleCreateScan(database *db.DB, q *queue.Queue) fiber.Handler {
 				Threads: req.Options.Threads,
 				Timeout: req.Options.Timeout,
 				Proxy:   req.Options.Proxy,
+			},
+			Nuclei: config.NucleiOptions{
+				Severity:    req.Options.NucleiSeverity,
+				Tags:        req.Options.NucleiTags,
+				ExcludeTags: req.Options.NucleiExclude,
+				Templates:   req.Options.NucleiTemplates,
 			},
 			GitHub: config.GitHubOptions{
 				Token: req.Options.GitHubToken,

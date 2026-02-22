@@ -190,13 +190,14 @@ func buildNucleiArgs(inputFile, outputFile string, opts config.NucleiOptions) []
 		args = append(args, "-exclude-templates", et)
 	}
 
-	// Built-in ASM template set
-	for _, t := range asmTemplates {
-		args = append(args, "-t", t)
+	// Template selection: if the caller provided an explicit list, use only those.
+	// Otherwise fall back to the built-in ASM template set.
+	// This lets the web UI / API send exactly the categories the user picked.
+	templateDirs := asmTemplates
+	if len(opts.Templates) > 0 {
+		templateDirs = opts.Templates
 	}
-
-	// User-supplied additional template directories
-	for _, t := range opts.Templates {
+	for _, t := range templateDirs {
 		args = append(args, "-t", t)
 	}
 
