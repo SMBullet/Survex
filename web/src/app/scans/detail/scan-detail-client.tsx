@@ -538,119 +538,146 @@ export default function ScanDetailClient() {
           )}
 
           {/* ── Findings panel ────────────────────────────────────── */}
-          {findings.length > 0 && (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.05] bg-white/[0.015]">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 text-orange-400" />
-                  <span className="text-[13px] font-semibold text-white">Findings</span>
-                  <span className="rounded-full border border-orange-500/25 bg-orange-500/10 px-2 py-0.5 text-[10px] font-bold text-orange-400">
-                    {findings.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-zinc-600">
-                  {findings.filter(f => f.cvss_score && f.cvss_score > 0).length > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] text-zinc-500">
+          {findings.length > 0 && (() => {
+            const sevCount = (s: string) => findings.filter(f => f.severity === s).length;
+            const cvssCount = findings.filter(f => f.cvss_score && f.cvss_score > 0).length;
+            const SEV_PILLS = [
+              { s: "critical", label: "CRIT",   cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+              { s: "high",     label: "HIGH",   cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+              { s: "medium",   label: "MED",    cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+              { s: "low",      label: "LOW",    cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+              { s: "info",     label: "INFO",   cls: "bg-zinc-700/30 text-zinc-500 border-zinc-600/30" },
+            ];
+            return (
+              <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+
+                {/* Header */}
+                <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
+                  <div className="flex items-center gap-2.5">
+                    <ShieldAlert className="h-4 w-4 text-orange-400" />
+                    <span className="text-[13px] font-semibold text-white">Findings</span>
+                  </div>
+                  {/* Per-severity pill counts */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {SEV_PILLS.map(({ s, label, cls }) => {
+                      const n = sevCount(s);
+                      if (!n) return null;
+                      return (
+                        <span key={s} className={`rounded border px-2 py-0.5 text-[10px] font-bold tabular-nums ${cls}`}>
+                          {n} {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {cvssCount > 0 && (
+                    <span className="ml-auto flex items-center gap-1 text-[10px] text-zinc-600 font-mono">
                       <Shield className="h-3 w-3" />
-                      CVSS scored
+                      {cvssCount} CVSS scored
                     </span>
                   )}
-                  <span className="font-mono">{findings.filter(f => f.severity === "critical" || f.severity === "high").length} critical/high</span>
                 </div>
-              </div>
 
-              {/* Column headers */}
-              <div className="hidden sm:grid sm:grid-cols-[2fr_1fr_90px_80px_40px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
-                {["Finding", "Asset", "Severity", "CVSS", ""].map(h => (
-                  <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
-                ))}
-              </div>
+                {/* Column headers */}
+                <div className="hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_20px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
+                  {["Finding", "Asset", "Risk", ""].map(h => (
+                    <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
+                  ))}
+                </div>
 
-              {/* Rows */}
-              <div className="divide-y divide-white/[0.03]">
-                {findings.map((f, idx) => {
-                  const isOpen = expandedFinding === idx;
-                  const rowBorder =
-                    f.severity === "critical" ? "border-l-[2px] border-l-red-500/50" :
-                    f.severity === "high"     ? "border-l-[2px] border-l-orange-500/50" : "";
-                  return (
-                    <div key={idx}>
-                      <div
-                        onClick={() => setExpandedFinding(isOpen ? null : idx)}
-                        className={`hidden sm:grid sm:grid-cols-[2fr_1fr_90px_80px_40px] gap-0 px-5 py-3.5 cursor-pointer transition-colors hover:bg-white/[0.02] group ${rowBorder}`}
-                      >
-                        <div className="flex items-center min-w-0 pr-3">
-                          {f.new && (
-                            <span className="shrink-0 mr-2 h-1.5 w-1.5 rounded-full bg-blue-400" title="New finding" />
-                          )}
-                          <span className="text-[12px] text-zinc-300 font-medium truncate group-hover:text-white transition-colors">
-                            {f.title}
-                          </span>
+                {/* Rows */}
+                <div className="divide-y divide-white/[0.03]">
+                  {findings.map((f, idx) => {
+                    const isOpen = expandedFinding === idx;
+                    const accent =
+                      f.severity === "critical" ? "border-l-[2px] border-l-red-500/60" :
+                      f.severity === "high"     ? "border-l-[2px] border-l-orange-500/55" :
+                      f.severity === "medium"   ? "border-l-[2px] border-l-yellow-500/40" : "";
+                    return (
+                      <div key={idx}>
+                        {/* Desktop row */}
+                        <div
+                          onClick={() => setExpandedFinding(isOpen ? null : idx)}
+                          className={`hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_20px] gap-0 px-5 py-3.5 cursor-pointer hover:bg-white/[0.02] group transition-colors ${accent}`}
+                        >
+                          {/* Title */}
+                          <div className="flex items-center gap-2 min-w-0 pr-4">
+                            {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" title="New" />}
+                            <span className="text-[12px] text-zinc-300 font-medium truncate group-hover:text-white transition-colors leading-tight">
+                              {f.title}
+                            </span>
+                          </div>
+                          {/* Asset */}
+                          <div className="flex items-center min-w-0 pr-3">
+                            <span className="text-[11px] font-mono text-zinc-600 truncate">
+                              {f.asset}{f.port ? <span className="text-zinc-700">:{f.port}</span> : ""}
+                            </span>
+                          </div>
+                          {/* Severity + CVSS inline */}
+                          <div className="flex items-center gap-2">
+                            <SeverityBadge severity={f.severity} />
+                            <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
+                          </div>
+                          {/* Chevron */}
+                          <div className="flex items-center justify-end">
+                            <ChevronDown className={`h-3 w-3 text-zinc-700 group-hover:text-zinc-500 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
+                          </div>
                         </div>
-                        <div className="flex items-center min-w-0 pr-2">
-                          <span className="text-[11px] font-mono text-zinc-500 truncate">{f.asset}{f.port ? `:${f.port}` : ""}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <SeverityBadge severity={f.severity} />
-                        </div>
-                        <div className="flex items-center">
-                          <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
-                        </div>
-                        <div className="flex items-center justify-end">
-                          <ChevronDown className={`h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-500 transition-all duration-150 ${isOpen ? "rotate-180" : ""}`} />
-                        </div>
-                      </div>
 
-                      {/* Expanded detail */}
-                      {isOpen && (
-                        <div className="hidden sm:block px-5 py-3 bg-white/[0.015] border-t border-white/[0.04]">
-                          <div className="flex flex-wrap gap-x-6 gap-y-2 mb-2">
-                            {f.cvss_score && f.cvss_score > 0 && (
-                              <div>
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-700 mb-1">CVSS Score</p>
+                        {/* Expanded detail */}
+                        {isOpen && (
+                          <div className="hidden sm:block mx-5 mb-1 rounded-lg border border-white/[0.06] bg-[#060c18]/80 p-4">
+                            {f.detail && (
+                              <p className="text-[11px] font-mono text-zinc-500 leading-relaxed break-all mb-3">{f.detail}</p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-white/[0.05]">
+                              {f.cvss_score && f.cvss_score > 0 && (
                                 <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-700">CVSS</span>
                                   <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
                                   {f.cvss_vector && (
-                                    <span className="text-[10px] font-mono text-zinc-600">{f.cvss_vector}</span>
+                                    <span className="text-[10px] font-mono text-zinc-700">{f.cvss_vector}</span>
                                   )}
                                 </div>
+                              )}
+                              <div className="flex items-center gap-2 ml-auto">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-700">First Seen</span>
+                                <span className="text-[10px] text-zinc-600 font-mono">{new Date(f.first_seen).toLocaleString()}</span>
                               </div>
-                            )}
-                            <div>
-                              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-700 mb-1">First Seen</p>
-                              <p className="text-[11px] text-zinc-500 font-mono">{new Date(f.first_seen).toLocaleString()}</p>
                             </div>
                           </div>
-                          {f.detail && (
-                            <p className="text-[11px] text-zinc-500 font-mono leading-relaxed break-all">{f.detail}</p>
-                          )}
-                        </div>
-                      )}
+                        )}
 
-                      {/* Mobile row */}
-                      <div
-                        onClick={() => setExpandedFinding(isOpen ? null : idx)}
-                        className={`sm:hidden flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] ${rowBorder}`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400" />}
-                          <div className="min-w-0">
-                            <p className="text-[12px] font-medium text-zinc-300 truncate">{f.title}</p>
-                            <p className="text-[10px] text-zinc-600 font-mono truncate">{f.asset}</p>
+                        {/* Mobile row */}
+                        <div
+                          onClick={() => setExpandedFinding(isOpen ? null : idx)}
+                          className={`sm:hidden flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] ${accent}`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400" />}
+                            <div className="min-w-0">
+                              <p className="text-[12px] font-medium text-zinc-300 truncate">{f.title}</p>
+                              <p className="text-[10px] text-zinc-600 font-mono truncate">{f.asset}{f.port ? `:${f.port}` : ""}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
+                            <SeverityBadge severity={f.severity} />
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
-                          <SeverityBadge severity={f.severity} />
-                        </div>
+
+                        {/* Mobile expanded */}
+                        {isOpen && (
+                          <div className="sm:hidden mx-4 mb-2 rounded-lg border border-white/[0.06] bg-[#060c18]/80 p-3">
+                            {f.detail && <p className="text-[10px] font-mono text-zinc-500 leading-relaxed break-all">{f.detail}</p>}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── Error ─────────────────────────────────────────────── */}
           {scan?.error && (

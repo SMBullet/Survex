@@ -326,6 +326,7 @@ export default function NewScanPage() {
                           return (
                             <label
                               key={m.id}
+                              onClick={() => toggle(m.id)}
                               className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                                 on
                                   ? "border-emerald-500/40 bg-emerald-500/6 text-white"
