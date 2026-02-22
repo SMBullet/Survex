@@ -12,7 +12,7 @@ import (
 
 // AIConfig holds configuration for an AI provider.
 type AIConfig struct {
-	Provider string // "anthropic" | "openai" | "deepseek" | "gemini" | "ollama"
+	Provider string // "anthropic" | "openai" | "deepseek" | "gemini" | "ollama" | "pollinations"
 	APIKey   string
 	Model    string
 	BaseURL  string // custom endpoint (Ollama / self-hosted)
@@ -31,6 +31,8 @@ func (c *AIConfig) DefaultModel() string {
 		return "gemini-1.5-flash"
 	case "ollama":
 		return "llama3.2"
+	case "pollinations":
+		return "openai"
 	}
 	return ""
 }
@@ -49,7 +51,7 @@ func (c *AIConfig) Query(systemPrompt, userPrompt string) (string, error) {
 		return c.queryAnthropic(model, systemPrompt, userPrompt)
 	case "gemini":
 		return c.queryGemini(model, systemPrompt, userPrompt)
-	default: // openai, deepseek, ollama — all OpenAI-compatible
+	default: // openai, deepseek, ollama, pollinations — all OpenAI-compatible
 		return c.queryOpenAICompat(model, systemPrompt, userPrompt)
 	}
 }
@@ -115,7 +117,7 @@ func (c *AIConfig) queryAnthropic(model, system, user string) (string, error) {
 	return result.Content[0].Text, nil
 }
 
-// ── OpenAI-compatible (OpenAI, DeepSeek, Ollama) ────────────────────────────
+// ── OpenAI-compatible (OpenAI, DeepSeek, Ollama, Pollinations) ──────────────
 
 type openAIReq struct {
 	Model    string         `json:"model"`
@@ -139,7 +141,7 @@ type openAIResp struct {
 }
 
 func (c *AIConfig) queryOpenAICompat(model, system, user string) (string, error) {
-	baseURL := c.openAIBaseURL()
+	endpoint := c.openAIEndpoint()
 
 	messages := []openAIMessage{}
 	if system != "" {
@@ -149,12 +151,14 @@ func (c *AIConfig) queryOpenAICompat(model, system, user string) (string, error)
 
 	body, _ := json.Marshal(openAIReq{Model: model, Messages: messages})
 
-	req, err := http.NewRequest("POST", baseURL+"/chat/completions", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
@@ -177,20 +181,24 @@ func (c *AIConfig) queryOpenAICompat(model, system, user string) (string, error)
 	return result.Choices[0].Message.Content, nil
 }
 
-func (c *AIConfig) openAIBaseURL() string {
+// openAIEndpoint returns the full chat completions endpoint URL for the provider.
+func (c *AIConfig) openAIEndpoint() string {
 	switch c.Provider {
 	case "openai":
-		return "https://api.openai.com/v1"
+		return "https://api.openai.com/v1/chat/completions"
 	case "deepseek":
-		return "https://api.deepseek.com/v1"
+		return "https://api.deepseek.com/v1/chat/completions"
+	case "pollinations":
+		// Free public endpoint — no API key required.
+		return "https://text.pollinations.ai/openai"
 	case "ollama":
 		base := c.BaseURL
 		if base == "" {
 			base = "http://localhost:11434"
 		}
-		return strings.TrimRight(base, "/") + "/v1"
+		return strings.TrimRight(base, "/") + "/v1/chat/completions"
 	}
-	return "https://api.openai.com/v1"
+	return "https://api.openai.com/v1/chat/completions"
 }
 
 // ── Google Gemini ────────────────────────────────────────────────────────────

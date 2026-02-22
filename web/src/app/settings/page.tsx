@@ -148,11 +148,12 @@ export default function SettingsPage() {
   };
 
   const AI_PROVIDERS = [
-    { id: "anthropic", label: "Anthropic",  sub: "Claude Haiku / Sonnet",    placeholder: "sk-ant-…" },
-    { id: "openai",    label: "OpenAI",     sub: "GPT-4o / GPT-4o-mini",      placeholder: "sk-…" },
-    { id: "deepseek",  label: "DeepSeek",   sub: "deepseek-chat / reasoner",  placeholder: "sk-…" },
-    { id: "gemini",    label: "Gemini",     sub: "gemini-1.5-flash / pro",    placeholder: "AIza…" },
-    { id: "ollama",    label: "Ollama",     sub: "Local self-hosted model",   placeholder: "none needed" },
+    { id: "pollinations", label: "Free AI",    sub: "No key needed • Pollinations", placeholder: "" },
+    { id: "anthropic",    label: "Anthropic",  sub: "Claude Haiku / Sonnet",        placeholder: "sk-ant-…" },
+    { id: "openai",       label: "OpenAI",     sub: "GPT-4o / GPT-4o-mini",         placeholder: "sk-…" },
+    { id: "deepseek",     label: "DeepSeek",   sub: "deepseek-chat / reasoner",     placeholder: "sk-…" },
+    { id: "gemini",       label: "Gemini",     sub: "gemini-1.5-flash / pro",       placeholder: "AIza…" },
+    { id: "ollama",       label: "Ollama",     sub: "Local self-hosted model",      placeholder: "none needed" },
   ];
 
   const selectedProvider = AI_PROVIDERS.find(p => p.id === settings.ai_provider);
@@ -291,7 +292,7 @@ export default function SettingsPage() {
                   {/* Provider grid */}
                   <div className="space-y-2">
                     <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-600">Provider</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {AI_PROVIDERS.map(p => {
                         const active = settings.ai_provider === p.id;
                         return (
@@ -316,7 +317,7 @@ export default function SettingsPage() {
                   {settings.ai_provider && (
                     <div className="grid gap-4 sm:grid-cols-2">
                       {/* API Key */}
-                      {settings.ai_provider !== "ollama" && (
+                      {settings.ai_provider !== "ollama" && settings.ai_provider !== "pollinations" && (
                         <InputField
                           label="API Key"
                           value={settings.ai_api_key}
@@ -326,6 +327,12 @@ export default function SettingsPage() {
                           hint="Stored securely and never exposed to other users."
                         />
                       )}
+                      {settings.ai_provider === "pollinations" && (
+                        <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3">
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-600">No API Key Required</span>
+                          <span className="text-[12px] text-zinc-500">Powered by Pollinations.AI — free, public, no registration. Models: openai (GPT-4o-mini equiv), mistral, llama, openai-large.</span>
+                        </div>
+                      )}
 
                       {/* Model */}
                       <InputField
@@ -333,10 +340,11 @@ export default function SettingsPage() {
                         value={settings.ai_model}
                         onChange={v => setSettings(s => ({ ...s, ai_model: v }))}
                         placeholder={
-                          settings.ai_provider === "anthropic" ? "claude-haiku-4-5-20251001" :
-                          settings.ai_provider === "openai"    ? "gpt-4o-mini" :
-                          settings.ai_provider === "deepseek"  ? "deepseek-chat" :
-                          settings.ai_provider === "gemini"    ? "gemini-1.5-flash" :
+                          settings.ai_provider === "anthropic"    ? "claude-haiku-4-5-20251001" :
+                          settings.ai_provider === "openai"       ? "gpt-4o-mini" :
+                          settings.ai_provider === "deepseek"     ? "deepseek-chat" :
+                          settings.ai_provider === "gemini"       ? "gemini-1.5-flash" :
+                          settings.ai_provider === "pollinations" ? "openai / mistral / llama" :
                           "llama3.2"
                         }
                         hint="Leave blank to use the provider default."
@@ -361,7 +369,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={testAI}
-                        disabled={testingAI || (!settings.ai_api_key && settings.ai_provider !== "ollama")}
+                        disabled={testingAI || (!settings.ai_api_key && settings.ai_provider !== "ollama" && settings.ai_provider !== "pollinations")}
                         className="flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/8 hover:bg-violet-500/15 disabled:opacity-40 px-3.5 py-2 text-[12px] font-medium text-violet-400 transition-all"
                       >
                         {testingAI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
