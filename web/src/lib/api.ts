@@ -1,5 +1,12 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
+export interface Technology {
+  host: string;
+  name: string;
+  category: string; // CMS | E-Commerce | Framework | JavaScript | Language | Web Server | CDN | WAF | Analytics
+  version?: string;
+}
+
 export interface ScanJob {
   id: string;
   user_id: number;
@@ -75,6 +82,7 @@ export const api = {
       request<{ status: string }>(`/api/v1/scans/${id}`, {
         method: "DELETE",
       }),
+    technologies: (id: string) => request<Technology[]>(`/api/v1/scans/${id}/technologies`),
     reportUrl: (id: string) => `${BASE}/api/v1/scans/${id}/report?token=${token()}`,
     logsWsUrl: (id: string) => {
       const t = token();

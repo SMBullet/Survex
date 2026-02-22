@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -248,4 +249,40 @@ func handleScanLogs(database *db.DB, q *queue.Queue) fiber.Handler {
 		// Channel closed — job finished.
 		_ = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "done"))
 	})
+}
+
+// handleScanTechnologies serves the technologies.json produced by the scan.
+//
+//	GET /api/v1/scans/:id/technologies
+func handleScanTechnologies(database *db.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		u := currentUser(c)
+		id := c.Params("id")
+
+		job, err := database.GetScanJob(id, u.UserID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fiber.ErrNotFound
+			}
+			return fiber.ErrInternalServerError
+		}
+
+		// Derive scan directory from the stored report path.
+		// report_path = reports/<client>/<scan-id>/report.html
+		// technologies = reports/<client>/<scan-id>/technologies.json
+		if job.ReportPath == "" {
+			return c.JSON([]any{})
+		}
+
+		techPath := filepath.Join(filepath.Dir(job.ReportPath), "technologies.json")
+		data, err := os.ReadFile(techPath)
+		if err != nil {
+			// File doesn't exist yet (scan in progress) — return empty array.
+			return c.JSON([]any{})
+		}
+
+		// Return raw JSON directly to avoid double-encoding.
+		var raw json.RawMessage = data
+		return c.JSON(raw)
+	}
 }

@@ -58,6 +58,7 @@ func New(database *db.DB, q *queue.Queue, frontendDir string) *fiber.App {
 	scans.Get("/:id", handleGetScan(database))
 	scans.Delete("/:id", handleCancelScan(database, q))
 	scans.Get("/:id/report", handleScanReport(database))
+	scans.Get("/:id/technologies", handleScanTechnologies(database))
 
 	// WebSocket for live scan logs (auth handled by jwtWsUpgradeMiddleware above)
 	app.Get("/api/v1/scans/:id/logs", handleScanLogs(database, q))

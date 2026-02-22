@@ -307,6 +307,20 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		log.Printf("[survex] fingerprinting technologies (%d live URLs)", len(result.HTTP))
 		result.Technologies = tools.DetectTechnologies(result.HTTP, timeout)
 		log.Printf("[survex]   techdetect: %d technologies identified", len(result.Technologies))
+		for _, t := range result.Technologies {
+			log.Printf("[survex]     → %s (%s) on %s", t.Name, t.Category, t.Host)
+		}
+	}
+
+	// ── Step 5c: CMS-specific Scanning ────────────────────────────────────────
+	// If a CMS is detected, run the appropriate scanner (wpscan, droopescan, etc.)
+	// to enumerate plugin/theme vulnerabilities. Results merge into Vulnerabilities.
+	if !cfg.Scan.Passive && len(result.Technologies) > 0 {
+		cmsVulns := tools.RunCMSScans(result.Technologies, result.HTTP, timeout)
+		if len(cmsVulns) > 0 {
+			result.Vulnerabilities = append(result.Vulnerabilities, cmsVulns...)
+			log.Printf("[survex]   cms-scan: %d additional findings from CMS scanners", len(cmsVulns))
+		}
 	}
 
 	// ── Steps 6–11: Parallel Analysis ────────────────────────────────────────
