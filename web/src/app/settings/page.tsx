@@ -4,10 +4,56 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api, UserSettings, WebhookEntry } from "@/lib/api";
+
+// Per-provider credential field definitions
+const CLOUD_PROVIDERS = [
+  {
+    id: "aws", label: "AWS", icon: <Server className="h-4 w-4" />, color: "text-orange-400",
+    fields: [
+      { key: "access_key_id",     label: "Access Key ID",     type: "text",     placeholder: "AKIA…" },
+      { key: "secret_access_key", label: "Secret Access Key", type: "password", placeholder: "••••••" },
+      { key: "session_token",     label: "Session Token",     type: "password", placeholder: "Optional" },
+      { key: "role_arn",          label: "Role ARN",          type: "text",     placeholder: "arn:aws:iam::…:role/… (optional)" },
+      { key: "region",            label: "Region",            type: "text",     placeholder: "us-east-1" },
+    ],
+  },
+  {
+    id: "azure", label: "Azure", icon: <Cloud className="h-4 w-4" />, color: "text-blue-400",
+    fields: [
+      { key: "tenant_id",       label: "Tenant ID",       type: "text",     placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
+      { key: "client_id",       label: "Client ID",       type: "text",     placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
+      { key: "client_secret",   label: "Client Secret",   type: "password", placeholder: "Service principal secret" },
+      { key: "subscription_id", label: "Subscription ID", type: "text",     placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
+    ],
+  },
+  {
+    id: "gcp", label: "GCP", icon: <Cpu className="h-4 w-4" />, color: "text-violet-400",
+    fields: [
+      { key: "service_account_json", label: "Service Account JSON", type: "textarea", placeholder: '{ "type": "service_account", … }' },
+      { key: "project_id",           label: "Project ID",           type: "text",     placeholder: "my-project (auto-detected from JSON)" },
+    ],
+  },
+  {
+    id: "github", label: "GitHub", icon: <Github className="h-4 w-4" />, color: "text-foreground/60",
+    fields: [
+      { key: "token", label: "Personal Access Token", type: "password", placeholder: "ghp_…" },
+      { key: "org",   label: "Organization",          type: "text",     placeholder: "my-org (optional)" },
+    ],
+  },
+  {
+    id: "gitlab", label: "GitLab", icon: <GitBranch className="h-4 w-4" />, color: "text-orange-400",
+    fields: [
+      { key: "token", label: "Access Token",  type: "password", placeholder: "glpat-…" },
+      { key: "url",   label: "GitLab URL",    type: "text",     placeholder: "https://gitlab.com" },
+      { key: "group", label: "Group Path",    type: "text",     placeholder: "my-group (optional)" },
+    ],
+  },
+] as const;
 import { AppShell } from "@/components/app-shell";
 import {
   Settings, Key, Webhook, Plus, Trash2, Save, CheckCircle2,
   AlertCircle, Loader2, Eye, EyeOff, Send, ChevronRight, Brain, Zap,
+  Cloud, Server, Cpu, Github, GitBranch,
 } from "lucide-react";
 
 function InputField({
@@ -59,6 +105,13 @@ export default function SettingsPage() {
     ai_base_url: "",
   });
 
+  // Cloud credentials state
+  const [cloudCreds, setCloudCreds] = useState<Record<string, Record<string, string>>>({});
+  const [cloudSaving, setCloudSaving] = useState<Record<string, boolean>>({});
+  const [cloudSaved, setCloudSaved] = useState<Record<string, boolean>>({});
+  const [cloudError, setCloudError] = useState<Record<string, string>>({});
+  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
+
   // AI test state
   const [testingAI, setTestingAI] = useState(false);
   const [aiTestResult, setAITestResult] = useState<"ok" | "fail" | null>(null);
@@ -81,6 +134,9 @@ export default function SettingsPage() {
 
   useEffect(() => { if (!loading && !user) router.replace("/login"); }, [user, loading, router]);
   useEffect(() => { if (user) loadSettings(); }, [user, loadSettings]);
+  useEffect(() => {
+    if (user) api.cloud.getCredentials().then(setCloudCreds).catch(() => {});
+  }, [user]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -145,6 +201,26 @@ export default function SettingsPage() {
     } finally {
       setTestingAI(false);
     }
+  };
+
+  const handleSaveCloudCreds = async (providerID: string) => {
+    setCloudSaving(s => ({ ...s, [providerID]: true }));
+    setCloudError(e => ({ ...e, [providerID]: "" }));
+    setCloudSaved(s => ({ ...s, [providerID]: false }));
+    try {
+      await api.cloud.saveCredentials(providerID, cloudCreds[providerID] ?? {});
+      setCloudSaved(s => ({ ...s, [providerID]: true }));
+      setTimeout(() => setCloudSaved(s => ({ ...s, [providerID]: false })), 3000);
+    } catch (e: unknown) {
+      setCloudError(err => ({ ...err, [providerID]: e instanceof Error ? e.message : "Save failed" }));
+    } finally {
+      setCloudSaving(s => ({ ...s, [providerID]: false }));
+    }
+  };
+
+  const handleClearCloudCreds = async (providerID: string) => {
+    await api.cloud.deleteCredentials(providerID).catch(() => {});
+    setCloudCreds(c => { const n = { ...c }; delete n[providerID]; return n; });
   };
 
   const AI_PROVIDERS = [
@@ -386,6 +462,87 @@ export default function SettingsPage() {
                       Select a provider above to configure AI features. The AI assistant can explain findings, suggest scan configurations, and write executive summaries.
                     </p>
                   )}
+                </div>
+              </div>
+
+              {/* ── Cloud Credentials ─────────────────────────────────────────── */}
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3.5">
+                  <Cloud className="h-4 w-4 text-primary/70" />
+                  <div>
+                    <p className="text-[13px] font-semibold text-foreground">Cloud Credentials</p>
+                    <p className="text-[11px] text-muted-foreground/60">Saved credentials are auto-injected when running cloud reviews from AWS, Azure, GCP, GitHub, and GitLab pages.</p>
+                  </div>
+                </div>
+                <div className="divide-y divide-border">
+                  {CLOUD_PROVIDERS.map(prov => {
+                    const isOpen = expandedProvider === prov.id;
+                    const creds = cloudCreds[prov.id] ?? {};
+                    return (
+                      <div key={prov.id}>
+                        <button
+                          onClick={() => setExpandedProvider(isOpen ? null : prov.id)}
+                          className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-muted/20 transition-colors text-left"
+                        >
+                          <span className={prov.color}>{prov.icon}</span>
+                          <span className="text-[13px] font-medium text-foreground flex-1">{prov.label}</span>
+                          {Object.keys(creds).length > 0 && (
+                            <span className="text-[11px] text-green-400 font-medium">Saved</span>
+                          )}
+                          <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground/40 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                        </button>
+                        {isOpen && (
+                          <div className="px-5 pb-5 space-y-3 bg-muted/10">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {prov.fields.map(field => (
+                                <div key={field.key} className={`space-y-1.5 ${field.type === "textarea" ? "sm:col-span-2" : ""}`}>
+                                  <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">{field.label}</label>
+                                  {field.type === "textarea" ? (
+                                    <textarea
+                                      rows={5}
+                                      placeholder={field.placeholder}
+                                      value={creds[field.key] ?? ""}
+                                      onChange={e => setCloudCreds(c => ({ ...c, [prov.id]: { ...c[prov.id], [field.key]: e.target.value } }))}
+                                      className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all resize-none"
+                                    />
+                                  ) : (
+                                    <input
+                                      type={field.type}
+                                      placeholder={field.placeholder}
+                                      value={creds[field.key] ?? ""}
+                                      onChange={e => setCloudCreds(c => ({ ...c, [prov.id]: { ...c[prov.id], [field.key]: e.target.value } }))}
+                                      className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {cloudError[prov.id] && (
+                              <div className="flex items-center gap-2 text-[12px] text-red-400">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0" />{cloudError[prov.id]}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-3 pt-1">
+                              <button
+                                onClick={() => handleSaveCloudCreds(prov.id)}
+                                disabled={cloudSaving[prov.id]}
+                                className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-3.5 py-2 text-[12px] font-semibold text-primary-foreground transition-all"
+                              >
+                                {cloudSaving[prov.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                {cloudSaved[prov.id] ? "Saved!" : "Save"}
+                              </button>
+                              <button
+                                onClick={() => handleClearCloudCreds(prov.id)}
+                                className="flex items-center gap-2 rounded-lg border border-border px-3.5 py-2 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+                              >
+                                <Trash2 className="h-3 w-3" />Clear
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

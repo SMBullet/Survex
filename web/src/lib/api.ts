@@ -82,6 +82,37 @@ export interface AssetEntry {
   last_seen: string;
 }
 
+export interface CloudFinding {
+  provider: string;   // aws | azure | gcp | github | gitlab
+  service: string;    // S3 | IAM | EC2 | BlobStorage | NSG | etc.
+  resource: string;
+  check: string;
+  detail: string;
+  severity: string;   // critical | high | medium | low | info
+  remediation: string;
+}
+
+export interface CloudScanResult {
+  provider: string;
+  account_id?: string;
+  scan_id: string;
+  findings: CloudFinding[];
+  summary: Record<string, number>;
+  checks_run: number;
+}
+
+export interface CloudScanJob {
+  id: string;
+  user_id: number;
+  provider: string;
+  status: "queued" | "running" | "done" | "failed";
+  created_at: string;
+  started_at?: string;
+  finished_at?: string;
+  result?: CloudScanResult;
+  error?: string;
+}
+
 function token(): string {
   if (typeof window === "undefined") return "";
   return localStorage.getItem("survex_token") ?? "";
@@ -204,5 +235,32 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ task, payload }),
       }),
+  },
+
+  cloud: {
+    getCredentials: () =>
+      request<Record<string, Record<string, string>>>("/api/v1/cloud/credentials"),
+    saveCredentials: (provider: string, data: Record<string, string>) =>
+      request<{ ok: boolean }>(`/api/v1/cloud/credentials/${provider}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    deleteCredentials: (provider: string) =>
+      request<{ ok: boolean }>(`/api/v1/cloud/credentials/${provider}`, {
+        method: "DELETE",
+      }),
+    createScan: (provider: string, options?: Record<string, unknown>) =>
+      request<{ id: string }>("/api/v1/cloud/scans", {
+        method: "POST",
+        body: JSON.stringify({ provider, options: options ?? {} }),
+      }),
+    listScans: (provider?: string, limit?: number) => {
+      const params = new URLSearchParams();
+      if (provider) params.set("provider", provider);
+      if (limit) params.set("limit", String(limit));
+      const qs = params.toString();
+      return request<CloudScanJob[]>(`/api/v1/cloud/scans${qs ? "?" + qs : ""}`);
+    },
+    getScan: (id: string) => request<CloudScanJob>(`/api/v1/cloud/scans/${id}`),
   },
 };

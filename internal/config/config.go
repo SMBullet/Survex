@@ -19,7 +19,7 @@ type Config struct {
 	// Use ["all"] to run everything, or name specific modules:
 	//   subfinder  amass  crts  dns  dnsbrute  nmap  httpx  tls  waf
 	//   headers  cors  cookies  s3  gau  katana  jsscan  screenshot  nuclei
-	//   shodan  takeover  email  github
+	//   shodan  takeover  email
 	Modules []string `yaml:"modules"`
 
 	Scan   ScanOptions   `yaml:"scan"`

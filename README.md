@@ -185,8 +185,12 @@ The Next.js app proxies API calls to `http://localhost:8080` automatically.
 | **Webhooks** | Configure Slack/Discord webhook URLs with one-click test button |
 | **Asset Inventory** | Cross-scan inventory of all discovered subdomains and live URLs with first/last seen timestamps. Search, filter by type, CSV export. |
 | **Schedules** | Create recurring scans (every 6h / 12h / 24h / 48h / 72h / weekly). Enable/disable without deleting. |
-| **GitHub Scanning** | Dedicated UI to search GitHub for leaked secrets and code exposures for your domains |
-| **Cloud Discovery** | AWS / Azure / GCP asset discovery pages (coming soon) |
+| **GitHub Scanning** | Two tabs: (1) GitHub code exposure search; (2) GitHub org/repo config review (branch protection, 2FA, webhooks, secret scanning) |
+| **GitLab Review** | GitLab group/project config review: branch protection, MR approvals, CI/CD variable exposure, webhooks |
+| **AWS Config Review** | IAM, S3, EC2, RDS, Lambda security audit using saved AWS credentials |
+| **Azure Config Review** | Storage, App Services, SQL, Key Vault, NSG security audit using service principal credentials |
+| **GCP Config Review** | GCS, Compute, BigQuery, Cloud SQL, Cloud Functions, IAM audit using a service account key |
+| **Cloud Credentials** | Save provider credentials once in Settings → auto-injected into every review scan |
 | **AI Assistant** | Multi-provider AI integration: Claude, ChatGPT, DeepSeek, Gemini, or local Ollama |
 
 ### AI Assistant
@@ -1022,6 +1026,255 @@ jobs:
 
 ---
 
+## Cloud Configuration Review
+
+Survex includes a dedicated cloud security audit engine that reviews provider configurations for misconfigurations, over-permissive access, and missing security controls. Reviews run asynchronously (same job-queue pattern as ASM scans) with live status polling in the UI.
+
+### Supported Providers
+
+| Provider | Auth Method | Coverage |
+|----------|------------|---------|
+| **AWS** | Access Key + Secret (+ optional Session Token / Role ARN) | IAM, S3, EC2, RDS, Lambda (25 checks) |
+| **Azure** | Service Principal (Tenant ID + Client ID + Client Secret + Subscription ID) | Storage, App Services, SQL, Key Vault, NSG (15 checks) |
+| **GCP** | Service Account JSON key | GCS, Compute, BigQuery, Cloud SQL, Cloud Functions, IAM (16 checks) |
+| **GitHub** | Personal Access Token | Org settings, repo branch protection, webhooks (14 checks) |
+| **GitLab** | Personal/Group Access Token | Groups, projects, CI/CD, webhooks (12 checks) |
+
+### Saving Credentials
+
+Go to **Settings → Cloud Credentials** and save your credentials once per provider. They are stored encrypted in the database and auto-injected when you start a review.
+
+Alternatively, enter them directly on the provider's review page without saving.
+
+### AWS Configuration Review
+
+**Required IAM permissions:**
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketAcl",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketEncryption",
+        "s3:GetBucketLogging",
+        "s3:GetBucketVersioning",
+        "iam:GetAccountPasswordPolicy",
+        "iam:ListUsers",
+        "iam:ListMFADevices",
+        "iam:ListUserPolicies",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListGroupsForUser",
+        "iam:ListAttachedGroupPolicies",
+        "iam:ListAccessKeys",
+        "iam:GetAccessKeyLastUsed",
+        "ec2:DescribeSecurityGroups",
+        "rds:DescribeDBInstances",
+        "lambda:ListFunctions",
+        "lambda:GetPolicy",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+**Checks performed:**
+
+| Service | Check | Severity |
+|---------|-------|----------|
+| S3 | Bucket ACL grants public read/write | Critical |
+| S3 | Public access block disabled | High |
+| S3 | Server-side encryption disabled | Medium |
+| S3 | Access logging disabled | Low |
+| S3 | Versioning disabled | Info |
+| IAM | Root account has active access key | Critical |
+| IAM | User has no MFA device | High |
+| IAM | User has AdministratorAccess directly attached | High |
+| IAM | Access key older than 90 days | Medium |
+| IAM | Password policy minimum length < 14 | Medium |
+| EC2 | Security group allows 0.0.0.0/0 on port 22 | Critical |
+| EC2 | Security group allows 0.0.0.0/0 on port 3389 | Critical |
+| EC2 | Security group allows 0.0.0.0/0 on any port | High |
+| RDS | Instance publicly accessible | High |
+| RDS | Encryption at rest disabled | Medium |
+| RDS | Automated backups disabled | Low |
+| Lambda | Environment variable contains secret keyword | High |
+| Lambda | Function has public resource policy | High |
+
+**Optional: AssumeRole**
+
+Set **Role ARN** to have Survex assume a read-only role before scanning. Useful for cross-account reviews or if you follow a least-privilege model where scanning is done via a dedicated `survex-read-only` role.
+
+### Azure Configuration Review
+
+**Auth:** Create a Service Principal with the `Reader` role on your subscription:
+
+```bash
+az ad sp create-for-rbac --name survex-reader \
+  --role Reader \
+  --scopes /subscriptions/{subscription-id}
+```
+
+This outputs the `appId` (Client ID), `password` (Client Secret), and `tenant` (Tenant ID).
+
+**Checks performed:**
+
+| Service | Check | Severity |
+|---------|-------|----------|
+| Storage | Public blob access enabled | High |
+| Storage | HTTPS-only not enforced | High |
+| Storage | Minimum TLS version below 1.2 | Medium |
+| App Services | HTTPS-only disabled | High |
+| App Services | Minimum TLS version below 1.2 | Medium |
+| App Services | No authentication configured | Medium |
+| SQL Servers | Firewall allows all IPs (0.0.0.0/0) | Critical |
+| SQL Servers | Auditing disabled | Medium |
+| Key Vaults | Soft delete disabled | High |
+| Key Vaults | Purge protection disabled | High |
+| NSG | Inbound rule allows all traffic on port 22 | Critical |
+| NSG | Inbound rule allows all traffic on port 3389 | Critical |
+| NSG | Inbound rule allows all traffic on any port | High |
+
+### GCP Configuration Review
+
+**Auth:** Create a service account with read-only roles and download the JSON key:
+
+```bash
+# Create service account
+gcloud iam service-accounts create survex-reader \
+  --display-name "Survex Read-Only"
+
+SA="survex-reader@{PROJECT_ID}.iam.gserviceaccount.com"
+
+# Grant read-only roles
+gcloud projects add-iam-policy-binding {PROJECT_ID} \
+  --member="serviceAccount:${SA}" --role="roles/viewer"
+gcloud projects add-iam-policy-binding {PROJECT_ID} \
+  --member="serviceAccount:${SA}" --role="roles/storage.objectViewer"
+gcloud projects add-iam-policy-binding {PROJECT_ID} \
+  --member="serviceAccount:${SA}" --role="roles/cloudfunctions.viewer"
+gcloud projects add-iam-policy-binding {PROJECT_ID} \
+  --member="serviceAccount:${SA}" --role="roles/iam.securityReviewer"
+
+# Create and download key
+gcloud iam service-accounts keys create survex-sa-key.json \
+  --iam-account="${SA}"
+```
+
+Paste the contents of `survex-sa-key.json` into the **Service Account JSON** field in the web UI.
+
+**Checks performed:**
+
+| Service | Check | Severity |
+|---------|-------|----------|
+| GCS | Bucket grants `allUsers` or `allAuthenticatedUsers` IAM access | Critical |
+| GCS | Uniform bucket-level access disabled | Medium |
+| GCS | Versioning disabled | Info |
+| Compute | Firewall allows 0.0.0.0/0 on port 22 | Critical |
+| Compute | Firewall allows 0.0.0.0/0 on port 3389 | Critical |
+| Compute | Firewall allows 0.0.0.0/0 on any port | High |
+| Compute | Instance has public IP and OS Login is disabled | High |
+| Compute | Project-wide SSH keys are enabled | Medium |
+| BigQuery | Dataset grants `allUsers` or `allAuthenticatedUsers` | Critical |
+| Cloud SQL | Authorized network includes 0.0.0.0/0 | Critical |
+| Cloud SQL | SSL not required for connections | High |
+| Cloud SQL | Automated backups disabled | Medium |
+| Cloud Functions | Environment variable contains secret keyword | High |
+| IAM | Service account has Owner or Editor role at project level | High |
+| IAM | Service account key older than 90 days | Medium |
+
+### GitHub Configuration Review
+
+**Required scopes:** `read:org`, `repo` (for private repo checks; public repos only need `public_repo`).
+
+**Checks performed:**
+
+| Check | Severity |
+|-------|----------|
+| Org: Two-factor authentication not required | High |
+| Org: SAML SSO not enforced | Medium |
+| Org: Default repository visibility is public | Medium |
+| Org: Members can fork private repositories | Low |
+| Org webhooks: Non-HTTPS webhook URL | High |
+| Org webhooks: No webhook secret configured | High |
+| Repo: Default branch has no branch protection | High |
+| Repo: No required pull request reviews | Medium |
+| Repo: Branch allows force pushes | High |
+| Repo: Branch allows deletions | High |
+| Repo: Secret scanning disabled | High |
+| Repo: Dependabot vulnerability alerts disabled | Medium |
+| Repo: GitHub Actions has default write permissions | Medium |
+| Repo webhooks: Non-HTTPS or insecure webhook | High |
+
+### GitLab Configuration Review
+
+**Required scope:** `read_api`. For approval rule checks, GitLab Premium or higher is required.
+
+Set **GitLab URL** to your self-hosted instance URL (e.g., `https://gitlab.company.com`) or leave it as `https://gitlab.com` for SaaS.
+
+**Checks performed:**
+
+| Check | Severity |
+|-------|----------|
+| Group: Two-factor authentication not enforced | High |
+| Group: No IP restriction configured | Low |
+| Project: Default branch is not protected | High |
+| Project: Protected branch allows force push | High |
+| Project: No merge request approvals required | Medium |
+| Project: Container registry is public | Medium |
+| CI/CD: Variable is not masked | High |
+| CI/CD: Variable is not protected | Medium |
+| Webhook: Non-HTTPS URL | High |
+| Webhook: SSL verification disabled | High |
+
+### Cloud API Reference
+
+```
+GET    /api/v1/cloud/credentials              Get all saved provider credentials (sensitive fields redacted)
+PUT    /api/v1/cloud/credentials/:provider    Save credentials for a provider
+DELETE /api/v1/cloud/credentials/:provider    Clear credentials for a provider
+
+POST   /api/v1/cloud/scans                    Start a new cloud review scan
+GET    /api/v1/cloud/scans?provider=&limit=   List past cloud scans
+GET    /api/v1/cloud/scans/:id                Get scan status and findings
+```
+
+**Example: Save AWS credentials via API**
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/cloud/credentials/aws \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "access_key_id": "AKIA...",
+    "secret_access_key": "wJalrXUt...",
+    "region": "us-east-1"
+  }'
+```
+
+**Example: Start an AWS review scan**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/cloud/scans \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "aws"}'
+# Uses saved credentials automatically.
+# Returns: {"id": "abc123..."}
+
+# Poll until done:
+curl http://localhost:8080/api/v1/cloud/scans/abc123 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
 ## Project Structure
 
 ```
@@ -1036,11 +1289,17 @@ Survex/
 │   │   ├── false_positives.go    ← FP list, add, remove — persisted per user
 │   │   ├── schedules.go          ← Recurring scan CRUD + RunScheduledJob()
 │   │   ├── assets.go             ← Cross-scan asset inventory (reads scan output files)
+│   │   ├── cloud_handlers.go     ← Cloud credentials + scan CRUD (AWS/Azure/GCP/GitHub/GitLab)
 │   │   └── server.go             ← Fiber app setup, CORS, routes, error handler
 │   ├── db/
-│   │   └── db.go                 ← SQLite: users, scan_jobs, user_settings, false_positives, schedules
+│   │   ├── db.go                 ← SQLite: users, scan_jobs, user_settings, false_positives, schedules
+│   │   └── cloud_db.go           ← cloud_credentials + cloud_scans tables
+│   ├── models/
+│   │   ├── models.go             ← 28 data types including ScanResult aggregate
+│   │   └── cloud_models.go       ← CloudFinding, CloudScanResult, CloudScanJob
 │   ├── queue/
-│   │   └── queue.go              ← Single-worker scan queue with log capture + WebSocket fan-out
+│   │   ├── queue.go              ← Single-worker scan queue with log capture + WebSocket fan-out
+│   │   └── cloud_queue.go        ← Cloud review job queue (dispatches to AWS/Azure/GCP/GitHub/GitLab tools)
 │   ├── scheduler/
 │   │   └── scheduler.go          ← Background goroutine: fires recurring scans on interval
 │   ├── config/
@@ -1081,6 +1340,11 @@ Survex/
 │   │   ├── nuclei.go             ← nuclei wrapper (17 template dirs)
 │   │   ├── shodan.go             ← Shodan REST API client
 │   │   ├── github.go             ← GitHub Search API client
+│   │   ├── aws.go                ← AWS SDK v2 config review (IAM/S3/EC2/RDS/Lambda)
+│   │   ├── azure.go              ← Azure ARM REST config review (Storage/AppSvc/SQL/KV/NSG)
+│   │   ├── gcp.go                ← GCP REST config review with JWT SA auth (GCS/Compute/BQ/SQL/Functions/IAM)
+│   │   ├── github_review.go      ← GitHub org/repo config review (branch protection, webhooks, 2FA)
+│   │   ├── gitlab_review.go      ← GitLab group/project config review (branches, CI/CD vars, webhooks)
 │   │   └── notify.go             ← Slack/Discord/generic webhook notifications
 │   ├── risk/
 │   │   └── risk.go               ← Risk scoring: 80+ rules across all modules
@@ -1100,12 +1364,12 @@ Survex/
 │   │   │   ├── assets/page.tsx   ← Cross-scan asset inventory (subdomains + URLs)
 │   │   │   ├── schedules/page.tsx← Recurring scan management
 │   │   │   ├── settings/page.tsx ← API keys + webhook management
-│   │   │   ├── github/page.tsx   ← GitHub code exposure scan form
-│   │   │   ├── gitlab/page.tsx   ← GitLab scanning (coming soon)
+│   │   │   ├── github/page.tsx   ← GitHub: two tabs — Exposure Scan + Config Review
+│   │   │   ├── gitlab/page.tsx   ← GitLab config review (token, URL, group → async scan + findings)
 │   │   │   ├── cloud/page.tsx    ← Cloud provider overview (AWS/Azure/GCP)
-│   │   │   ├── cloud/aws/        ← AWS discovery (coming soon)
-│   │   │   ├── cloud/azure/      ← Azure discovery (coming soon)
-│   │   │   ├── cloud/gcp/        ← GCP discovery (coming soon)
+│   │   │   ├── cloud/aws/        ← AWS config review (credentials form + async scan + findings table)
+│   │   │   ├── cloud/azure/      ← Azure config review (service principal + async scan + findings table)
+│   │   │   ├── cloud/gcp/        ← GCP config review (service account JSON + async scan + findings table)
 │   │   │   └── scans/
 │   │   │       ├── new/page.tsx  ← New scan wizard (6 profiles + 28 modules + nuclei config)
 │   │   │       └── detail/       ← Scan detail: pipeline tracker, live logs, findings, export

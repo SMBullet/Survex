@@ -606,16 +606,6 @@ func Run(ctx context.Context, cfg *config.Config) (*models.ScanResult, error) {
 		}
 	}
 
-	// ── Step 16b: GitHub Exposure Check ──────────────────────────────────────
-	if cfg.GitHubEnabled() {
-		if len(domains) == 0 {
-			log.Printf("[survex] github: skipped (no domain targets)")
-		} else {
-			log.Printf("[survex] checking GitHub for code exposures (%d domains)", len(domains))
-			result.GitHubExposures = tools.CheckGitHubExposure(domains, cfg.GitHub.Token)
-			log.Printf("[survex]   github: %d exposures found", len(result.GitHubExposures))
-		}
-	}
 
 	if ctx.Err() != nil {
 		return result, ctx.Err()

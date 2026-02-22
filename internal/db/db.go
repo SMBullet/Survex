@@ -162,6 +162,32 @@ func (d *DB) migrate() error {
 
 		`CREATE INDEX IF NOT EXISTS schedules_user_id  ON schedules(user_id)`,
 		`CREATE INDEX IF NOT EXISTS schedules_next_run ON schedules(next_run)`,
+
+		// Cloud credentials: per-user, per-provider saved credentials
+		`CREATE TABLE IF NOT EXISTS cloud_credentials (
+			user_id    INTEGER NOT NULL REFERENCES users(id),
+			provider   TEXT    NOT NULL,
+			data_json  TEXT    NOT NULL DEFAULT '{}',
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (user_id, provider)
+		)`,
+
+		// Cloud scan jobs: async cloud/SCM config review scans
+		`CREATE TABLE IF NOT EXISTS cloud_scans (
+			id           TEXT    PRIMARY KEY,
+			user_id      INTEGER NOT NULL REFERENCES users(id),
+			provider     TEXT    NOT NULL,
+			status       TEXT    NOT NULL DEFAULT 'queued',
+			options_json TEXT    NOT NULL DEFAULT '{}',
+			result_json  TEXT    NOT NULL DEFAULT '{}',
+			created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+			started_at   DATETIME,
+			finished_at  DATETIME,
+			error_msg    TEXT    NOT NULL DEFAULT ''
+		)`,
+
+		`CREATE INDEX IF NOT EXISTS cloud_scans_user_id  ON cloud_scans(user_id)`,
+		`CREATE INDEX IF NOT EXISTS cloud_scans_provider ON cloud_scans(provider)`,
 	}
 
 	for _, stmt := range stmts {

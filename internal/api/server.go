@@ -16,7 +16,7 @@ import (
 )
 
 // New creates and configures the Fiber application.
-func New(database *db.DB, q *queue.Queue, frontendDir string) *fiber.App {
+func New(database *db.DB, q *queue.Queue, cq *queue.CloudQueue, frontendDir string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      "Survex API",
 		ErrorHandler: jsonErrorHandler,
@@ -84,6 +84,17 @@ func New(database *db.DB, q *queue.Queue, frontendDir string) *fiber.App {
 
 	// Assets (protected)
 	v1.Get("/assets", jwtMiddleware, handleListAssets(database))
+
+	// Cloud credentials (protected)
+	cloud := v1.Group("/cloud", jwtMiddleware)
+	cloud.Get("/credentials", handleGetCloudCredentials(database))
+	cloud.Put("/credentials/:provider", handlePutCloudCredentials(database))
+	cloud.Delete("/credentials/:provider", handleDeleteCloudCredentials(database))
+
+	// Cloud scans (protected)
+	cloud.Post("/scans", handleCreateCloudScan(database, cq))
+	cloud.Get("/scans", handleListCloudScans(database))
+	cloud.Get("/scans/:id", handleGetCloudScan(database))
 
 	// AI (protected)
 	v1.Post("/ai/query", jwtMiddleware, handleAIQuery(database))

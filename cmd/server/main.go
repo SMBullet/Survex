@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -26,24 +27,28 @@ func main() {
 	defer database.Close()
 	log.Printf("survex-server: database opened at %s", *dbPath)
 
-	// ── Queue ─────────────────────────────────────────────────────────────────
+	// ── Queues ────────────────────────────────────────────────────────────────
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	q := queue.New(database)
 	defer q.Stop()
 	log.Printf("survex-server: scan queue started")
+
+	cq := queue.NewCloudQueue(database)
+	cq.Start(ctx)
+	log.Printf("survex-server: cloud queue started")
 
 	// ── API server ─────────────────────────────────────────────────────────────
 	frontend := *frontendDir
 	if _, err := os.Stat(frontend); err != nil {
 		frontend = "" // don't serve static files if the directory doesn't exist
 	}
-	app := api.New(database, q, frontend)
+	app := api.New(database, q, cq, frontend)
 
 	// ── Graceful shutdown ──────────────────────────────────────────────────────
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
-		<-quit
+		<-ctx.Done()
 		log.Println("survex-server: shutting down...")
 		_ = app.Shutdown()
 	}()

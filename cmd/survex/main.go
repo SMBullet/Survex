@@ -868,11 +868,16 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	q := queue.New(database)
 
+	// Cloud queue (async cloud config reviews)
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cq := queue.NewCloudQueue(database)
+	cq.Start(ctx)
+
 	// Start the recurring scan scheduler.
 	sched := scheduler.New(database, q, api.RunScheduledJob)
 	sched.Start()
 
-	app := api.New(database, q, frontendDir)
+	app := api.New(database, q, cq, frontendDir)
 
 	// Graceful shutdown on Ctrl+C / SIGTERM
 	sigCh := make(chan os.Signal, 1)
@@ -880,6 +885,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	go func() {
 		<-sigCh
 		fmt.Fprintln(os.Stderr, "\n[survex] shutting down…")
+		cancelCtx()
 		sched.Stop()
 		_ = app.Shutdown()
 	}()

@@ -85,7 +85,6 @@ const MODULE_GROUPS = [
       { id: "takeover",  label: "Subdomain Takeover", desc: "Detect dangling DNS / takeover risk",   builtin: true },
       { id: "email",     label: "Email Security",     desc: "SPF, DMARC and DKIM checks",            builtin: true },
       { id: "jsscan",    label: "JS Secret Scan",     desc: "Extract secrets from JS bundles",       builtin: true },
-      { id: "github",    label: "GitHub Exposure",    desc: "Search GitHub for leaked code",         builtin: true },
       { id: "s3",        label: "Cloud Storage",      desc: "S3 / GCS / Azure bucket exposure",      builtin: true },
     ],
   },
