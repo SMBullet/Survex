@@ -68,7 +68,9 @@ func handleCreateScan(database *db.DB, q *queue.Queue) fiber.Handler {
 		if req.Client == "" {
 			req.Client = req.Targets[0]
 		}
-		if len(req.Modules) == 0 {
+		// Only apply default modules when no profile is set.
+		// A profile (quick/full/web/…) resolves its own module list server-side.
+		if len(req.Modules) == 0 && req.Options.Profile == "" {
 			req.Modules = []string{"httpx", "tls", "headers", "cors"}
 		}
 
@@ -160,12 +162,17 @@ func handleCancelScan(database *db.DB, q *queue.Queue) fiber.Handler {
 			return fiber.NewError(fiber.StatusConflict, "scan is not active")
 		}
 
-		// Cancel the in-memory job if it exists.
+		// Immediately mark as cancelled in the DB so the UI updates without waiting
+		// for the queue worker to finish the current operation.
+		now := time.Now()
+		_ = database.UpdateScanStatus(id, "cancelled", job.StartedAt, &now)
+
+		// Signal the in-memory job (sets flag + cancels context).
 		if qj := q.Get(id); qj != nil {
 			qj.Cancel()
 		}
 
-		return c.JSON(fiber.Map{"status": "cancelling"})
+		return c.JSON(fiber.Map{"status": "cancelled"})
 	}
 }
 

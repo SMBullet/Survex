@@ -24,6 +24,7 @@ type Job struct {
 	Config *config.Config
 
 	mu          sync.RWMutex
+	cancelled   bool // set by Cancel(); checked before the scan starts
 	logLines    []string
 	subscribers []chan string
 	cancel      context.CancelFunc
@@ -58,14 +59,24 @@ func (j *Job) Unsubscribe(ch chan string) {
 	j.mu.Unlock()
 }
 
-// Cancel requests cancellation of the running scan.
+// Cancel marks the job as cancelled.
+// If the scan is already running the context is cancelled immediately.
+// If it hasn't started yet the flag is checked before the scan begins.
 func (j *Job) Cancel() {
-	j.mu.RLock()
+	j.mu.Lock()
+	j.cancelled = true
 	cancel := j.cancel
-	j.mu.RUnlock()
+	j.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
+}
+
+// IsCancelled returns true if Cancel has been called.
+func (j *Job) IsCancelled() bool {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	return j.cancelled
 }
 
 // LogLines returns a copy of all log lines emitted so far.
@@ -83,7 +94,7 @@ func (j *Job) appendLog(line string) {
 	for _, ch := range j.subscribers {
 		select {
 		case ch <- line:
-		default: // drop if subscriber is slow
+		default:
 		}
 	}
 	j.mu.Unlock()
@@ -142,7 +153,6 @@ func (q *Queue) Stop() {
 	<-q.done
 }
 
-// worker processes jobs serially to prevent log interleaving.
 func (q *Queue) worker() {
 	defer close(q.done)
 	origOut := log.Writer()
@@ -151,16 +161,23 @@ func (q *Queue) worker() {
 	}
 }
 
-// runJob executes one scan job, capturing all log output into the job's log store.
 func (q *Queue) runJob(job *Job, origLog io.Writer) {
+	// Check if the job was cancelled before it even reached the worker.
+	if job.IsCancelled() {
+		now := time.Now()
+		_ = q.database.UpdateScanStatus(job.ID, "cancelled", &now, &now)
+		job.appendLog("[queue] scan was cancelled before it started")
+		job.closeSubscribers()
+		return
+	}
+
 	startedAt := time.Now()
 	_ = q.database.UpdateScanStatus(job.ID, "running", &startedAt, nil)
 
-	// Redirect the global logger through a pipe so we can read lines.
+	// Redirect the global logger through a pipe so we can fan out lines.
 	pr, pw := io.Pipe()
 	log.SetOutput(io.MultiWriter(origLog, pw))
 
-	// Goroutine reads lines from the pipe and dispatches them to subscribers.
 	pipeDone := make(chan struct{})
 	go func() {
 		defer close(pipeDone)
@@ -175,10 +192,15 @@ func (q *Queue) runJob(job *Job, origLog io.Writer) {
 	job.cancel = cancel
 	job.mu.Unlock()
 
+	// If Cancel() was called between the IsCancelled check above and now,
+	// make sure the context is also cancelled.
+	if job.IsCancelled() {
+		cancel()
+	}
+
 	result, err := scan.Run(ctx, job.Config)
 	cancel()
 
-	// Flush pipe and restore logger before updating DB.
 	_ = pw.Close()
 	<-pipeDone
 	log.SetOutput(origLog)
@@ -186,13 +208,13 @@ func (q *Queue) runJob(job *Job, origLog io.Writer) {
 	finishedAt := time.Now()
 
 	switch {
-	case err == nil:
+	case err == nil && !job.IsCancelled():
 		findCount, maxSev, reportPath := extractMeta(job.Config, result)
 		_ = q.database.UpdateScanStatus(job.ID, "done", &startedAt, &finishedAt)
 		_ = q.database.UpdateScanResult(job.ID, findCount, maxSev, reportPath)
-		job.appendLog(fmt.Sprintf("[queue] scan complete: %d findings (max: %s)", findCount, maxSev))
+		job.appendLog(fmt.Sprintf("[queue] scan complete — %d findings (max severity: %s)", findCount, maxSev))
 
-	case err == context.Canceled:
+	case job.IsCancelled() || err == context.Canceled:
 		_ = q.database.UpdateScanStatus(job.ID, "cancelled", &startedAt, &finishedAt)
 		job.appendLog("[queue] scan was cancelled")
 
@@ -204,7 +226,6 @@ func (q *Queue) runJob(job *Job, origLog io.Writer) {
 	job.closeSubscribers()
 }
 
-// extractMeta pulls finding count, max severity, and report path from a result.
 func extractMeta(cfg *config.Config, result *models.ScanResult) (int, string, string) {
 	if result == nil {
 		return 0, "", ""
