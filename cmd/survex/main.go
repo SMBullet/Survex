@@ -12,10 +12,12 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/SMBullet/Survex/internal/api"
 	"github.com/SMBullet/Survex/internal/config"
+	"github.com/SMBullet/Survex/internal/db"
+	"github.com/SMBullet/Survex/internal/queue"
 	"github.com/SMBullet/Survex/internal/risk"
 	"github.com/SMBullet/Survex/internal/scan"
-	"github.com/SMBullet/Survex/internal/server"
 	"github.com/SMBullet/Survex/internal/store"
 	"github.com/SMBullet/Survex/internal/tools"
 	"github.com/spf13/cobra"
@@ -113,17 +115,22 @@ Examples:
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Start the Survex web dashboard",
-	Long: `Start a read-only web dashboard for browsing scan results.
+	Short: "Start the Survex web UI (API + dashboard)",
+	Long: `Start the full Survex web platform: REST API, WebSocket log streaming,
+and a Next.js dashboard for managing scans from the browser.
 
-The dashboard lists all clients, their last scan time, and links directly
-to each HTML report. Scan output directories are served as static files so
-screenshots and JSON files are also accessible in the browser.
+The server handles user authentication (JWT), queues scans, streams live
+log output over WebSockets, and serves the built frontend as static files.
 
 Examples:
-  survex serve                           # listen on 127.0.0.1:8080
-  survex serve --addr 0.0.0.0:9000      # listen on all interfaces
-  survex serve --reports-dir /data/reports`,
+  survex serve                             # listen on 0.0.0.0:8080
+  survex serve --addr 127.0.0.1:9000      # custom address
+  survex serve --db /var/lib/survex.db    # custom database path
+  survex serve --frontend web/out         # serve built frontend
+
+To use the web UI, build the frontend first:
+  cd web && npm install && npm run build  # produces web/out/
+  survex serve --frontend web/out`,
 	RunE: runServe,
 }
 
@@ -187,8 +194,9 @@ var (
 	flagInstallFixPath bool
 
 	// serve subcommand
-	flagServeAddr       string
-	flagServeReportsDir string
+	flagServeAddr     string
+	flagServeDB       string
+	flagServeFrontend string
 
 	// watch subcommand
 	flagWatchInterval string
@@ -253,8 +261,9 @@ func init() {
 	installCmd.Flags().BoolVar(&flagInstallFixPath, "fix-path", false, "Add ~/go/bin to shell config files without installing tools")
 
 	// ── serve flags ───────────────────────────────────────────────────────
-	serveCmd.Flags().StringVar(&flagServeAddr, "addr", "127.0.0.1:8080", "Listen address (host:port)")
-	serveCmd.Flags().StringVar(&flagServeReportsDir, "reports-dir", "reports", "Directory containing scan report output")
+	serveCmd.Flags().StringVar(&flagServeAddr, "addr", "0.0.0.0:8080", "Listen address (host:port)")
+	serveCmd.Flags().StringVar(&flagServeDB, "db", "survex-web.db", "Path to the SQLite database file")
+	serveCmd.Flags().StringVar(&flagServeFrontend, "frontend", "", "Path to built Next.js output dir (web/out). Leave empty for API-only mode.")
 
 	// ── watch flags ───────────────────────────────────────────────────────
 	watchCmd.Flags().StringVar(&flagWatchInterval, "interval", "24h", "How often to re-scan (e.g. 1h, 6h, 24h, 7d)")
@@ -839,13 +848,35 @@ func runWatch(cmd *cobra.Command, args []string) error {
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
-	if err := initStore(); err != nil {
-		return fmt.Errorf("initializing store: %w", err)
+	database, err := db.Open(flagServeDB)
+	if err != nil {
+		return fmt.Errorf("opening database: %w", err)
 	}
-	fmt.Printf("Survex web dashboard → http://%s\n", flagServeAddr)
-	fmt.Printf("Reports directory   : %s\n", flagServeReportsDir)
+	defer database.Close()
+
+	q := queue.New(database)
+
+	app := api.New(database, q, flagServeFrontend)
+
+	// Graceful shutdown on Ctrl+C / SIGTERM
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Fprintln(os.Stderr, "\n[survex] shutting down…")
+		_ = app.Shutdown()
+	}()
+
+	fmt.Printf("Survex web UI  → http://%s\n", flagServeAddr)
+	fmt.Printf("Database       : %s\n", flagServeDB)
+	if flagServeFrontend != "" {
+		fmt.Printf("Frontend       : %s\n", flagServeFrontend)
+	} else {
+		fmt.Printf("Frontend       : API-only mode (no frontend dir set)\n")
+	}
 	fmt.Printf("Press Ctrl+C to stop.\n\n")
-	return server.Serve(flagServeAddr, flagServeReportsDir)
+
+	return app.Listen(flagServeAddr)
 }
 
 func main() {

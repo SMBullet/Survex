@@ -7,19 +7,20 @@ A modular Attack Surface Management (ASM) and automated pentesting CLI. Point it
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Module Reference](#module-reference)
-3. [Installation](#installation)
-4. [Quick Start](#quick-start)
-5. [CLI Reference](#cli-reference)
-6. [Scan Profiles](#scan-profiles)
-7. [Port Profiles](#port-profiles)
-8. [Config File Reference](#config-file-reference)
-9. [Risk Rules](#risk-rules)
-10. [Nuclei Template Coverage](#nuclei-template-coverage)
-11. [Output Files](#output-files)
-12. [Alerting (Webhooks)](#alerting-webhooks)
-13. [CI/CD Integration](#cicd-integration)
-14. [Project Structure](#project-structure)
+2. [Web UI](#web-ui)
+3. [Module Reference](#module-reference)
+4. [Installation](#installation)
+5. [Quick Start](#quick-start)
+6. [CLI Reference](#cli-reference)
+7. [Scan Profiles](#scan-profiles)
+8. [Port Profiles](#port-profiles)
+9. [Config File Reference](#config-file-reference)
+10. [Risk Rules](#risk-rules)
+11. [Nuclei Template Coverage](#nuclei-template-coverage)
+12. [Output Files](#output-files)
+13. [Alerting (Webhooks)](#alerting-webhooks)
+14. [CI/CD Integration](#cicd-integration)
+15. [Project Structure](#project-structure)
 
 ---
 
@@ -73,6 +74,109 @@ Diff → Risk Scoring → Webhooks → Persist → Output
 | Slack/Discord webhooks | ✓ | ✗ | ✗ | ✗ |
 | Dark-theme HTML report | ✓ | ✓ | ✗ | partial |
 | CI/CD exit codes | ✓ | ✗ | ✗ | ✗ |
+
+---
+
+## Web UI
+
+Survex ships with a full web platform — authentication, live scan management, WebSocket log streaming, and an HTML report viewer — accessible from any browser.
+
+### Architecture
+
+```
+survex serve          ← Go API server (Fiber + WebSocket)
+├── REST API          ← /api/v1/auth, /api/v1/scans
+├── WebSocket logs    ← /api/v1/scans/:id/logs
+├── Scan queue        ← single-worker, captures all log output
+├── SQLite DB         ← users + scan job history
+└── Next.js frontend  ← served as static files from web/out/
+```
+
+### Prerequisites
+
+**Node.js** is required to build the frontend. On WSL or Linux:
+
+```bash
+# Install nvm + Node 20 (one-time setup)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc          # or restart your terminal
+nvm install 20
+nvm use 20
+node --version            # v20.x.x
+```
+
+On Windows (native): download the installer from [nodejs.org](https://nodejs.org).
+
+### Build & Run
+
+```bash
+# 1. Build the Go binary
+go build -o survex ./cmd/survex/
+
+# 2. Install frontend dependencies and build
+cd web
+npm install
+npm run build             # outputs to web/out/
+cd ..
+
+# 3. Start the web server
+./survex serve --frontend web/out
+
+# Open http://localhost:8080 in your browser
+# Register an account, then start scanning.
+```
+
+### `survex serve` Flags
+
+```
+--addr string       Listen address (default "0.0.0.0:8080")
+--db string         SQLite database path (default "survex-web.db")
+--frontend string   Path to built Next.js output (web/out).
+                    Omit to run in API-only mode.
+```
+
+```bash
+# Listen on a specific interface
+./survex serve --addr 127.0.0.1:8080 --frontend web/out
+
+# Custom database location
+./survex serve --db /var/lib/survex/survex-web.db --frontend web/out
+
+# API-only mode (no frontend, useful if you deploy frontend separately)
+./survex serve --addr 0.0.0.0:8080
+```
+
+### Development Mode
+
+Run the API and frontend dev server separately for hot-reload:
+
+```bash
+# Terminal 1 — API server (no frontend flag)
+./survex serve --addr 0.0.0.0:8080
+
+# Terminal 2 — Next.js dev server
+cd web
+npm run dev               # http://localhost:3000
+```
+
+The Next.js app proxies API calls to `http://localhost:8080` automatically.
+
+### Web UI Features
+
+| Feature | Description |
+|---------|-------------|
+| Authentication | Email + password, JWT tokens (7-day expiry) |
+| Dashboard | All scans with status, findings, severity, and time |
+| New Scan Wizard | Visual profile picker, module selector, target input |
+| Live Logs | Real-time WebSocket terminal with color-coded output |
+| Pipeline Tracker | Step-by-step progress indicator (Initialising → Complete) |
+| Cancel Scan | Stop running or queued scans instantly |
+| Open Report | View the HTML report directly in the browser |
+| Dark/Light Theme | Toggle between dark and light mode |
+
+### Scan Queue
+
+The web server processes scans **one at a time** via an internal queue. This prevents log output from multiple concurrent scans from interleaving. Queued scans show a waiting indicator in the dashboard; they start automatically when the current scan finishes.
 
 ---
 
@@ -316,6 +420,22 @@ Installs or checks all Go-tool dependencies.
 ```bash
 ./survex install                        # Check and install everything
 ./survex install ffuf dalfox nuclei     # Install specific tools
+```
+
+### `survex serve`
+
+Start the web UI (see [Web UI](#web-ui) section for full setup):
+
+```bash
+./survex serve --frontend web/out              # default: 0.0.0.0:8080
+./survex serve --addr 127.0.0.1:9000 --frontend web/out
+./survex serve --db /data/survex.db --frontend web/out
+```
+
+```
+--addr string       Listen address (default "0.0.0.0:8080")
+--db string         SQLite database path (default "survex-web.db")
+--frontend string   Path to built Next.js output dir (web/out)
 ```
 
 ### `survex update`
@@ -849,8 +969,16 @@ jobs:
 ```
 Survex/
 ├── cmd/survex/
-│   └── main.go                   ← CLI: scan, watch, modules, install, update, diff, report, history
+│   └── main.go                   ← CLI: scan, serve, watch, modules, install, update, diff, report, history
 ├── internal/
+│   ├── api/
+│   │   ├── auth.go               ← JWT authentication: register, login, /me handlers
+│   │   ├── scans.go              ← Scan CRUD + WebSocket log streaming
+│   │   └── server.go             ← Fiber app setup, CORS, routes, error handler
+│   ├── db/
+│   │   └── db.go                 ← SQLite schema for users + scan_jobs (web UI)
+│   ├── queue/
+│   │   └── queue.go              ← Single-worker scan queue with log capture + WebSocket fan-out
 │   ├── config/
 │   │   └── config.go             ← Config structs + GitHubEnabled(), ResolveProfile()
 │   ├── models/
@@ -898,6 +1026,26 @@ Survex/
 │   │   └── store.go              ← SQLite persistence (pure Go, no CGO)
 │   └── report/
 │       └── report.go             ← Dark-theme HTML report (20+ sections)
+├── web/                          ← Next.js frontend
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── layout.tsx        ← Root layout with AuthProvider + ThemeProvider
+│   │   │   ├── page.tsx          ← Redirect: /dashboard or /login
+│   │   │   ├── login/page.tsx    ← Login + register (split-panel design)
+│   │   │   ├── dashboard/page.tsx← Scan list + stats dashboard
+│   │   │   └── scans/
+│   │   │       ├── new/page.tsx  ← New scan wizard (profile cards + module picker)
+│   │   │       └── [id]/page.tsx ← Scan detail: pipeline tracker + live log terminal
+│   │   ├── components/
+│   │   │   ├── nav.tsx           ← Navigation bar with theme toggle
+│   │   │   ├── severity-badge.tsx← Colored severity chip (critical/high/medium/low/info)
+│   │   │   └── ui/               ← shadcn/ui component library
+│   │   └── lib/
+│   │       ├── api.ts            ← API client (fetch wrapper + WebSocket URL helpers)
+│   │       └── auth.tsx          ← AuthContext: login, register, logout, user state
+│   ├── package.json
+│   ├── next.config.ts            ← output: 'export' for static build
+│   └── out/                      ← Built static files (after npm run build)
 ├── clients/
 │   ├── example.yaml              ← Full config template with all options documented
 │   └── onsexprime.yaml           ← Bug bounty example (no-subs, conservative rate)
@@ -908,12 +1056,18 @@ Survex/
 
 ## Technology Stack
 
+### CLI + Backend
+
 | Component | Technology |
 |-----------|-----------|
 | Language | Go 1.21+ |
 | CLI framework | `github.com/spf13/cobra` |
+| Web API server | `github.com/gofiber/fiber/v2` |
+| WebSocket | `github.com/gofiber/websocket/v2` |
+| Authentication | JWT (`golang-jwt/jwt/v5`) + bcrypt |
 | Config parsing | `gopkg.in/yaml.v3` |
-| Database | `modernc.org/sqlite` (pure Go, no CGO) |
+| Database (CLI) | `modernc.org/sqlite` — scan history, findings |
+| Database (Web) | `modernc.org/sqlite` — users, scan jobs |
 | DNS | `net.Resolver` + raw TCP for AXFR |
 | TLS analysis | `crypto/tls` (standard library) |
 | HTTP clients | `net/http` (standard library) |
@@ -921,3 +1075,15 @@ Survex/
 | External Go tools | subfinder, amass, httpx, nuclei, gau, katana, gowitness, ffuf, dalfox |
 | External system tools | nmap, sqlmap |
 | API integrations | Shodan REST API, GitHub Search API |
+
+### Web Frontend
+
+| Component | Technology |
+|-----------|-----------|
+| Framework | Next.js 15 (App Router, static export) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 |
+| UI Components | shadcn/ui (Radix UI primitives) |
+| Icons | lucide-react |
+| Themes | next-themes (dark/light toggle) |
+| Real-time logs | WebSocket (native browser API) |
