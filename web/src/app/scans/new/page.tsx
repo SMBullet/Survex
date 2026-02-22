@@ -62,7 +62,7 @@ const MODULE_GROUPS = {
 };
 
 const PROFILES = [
-  { value: "", label: "Custom (use selected modules)" },
+  { value: "custom", label: "Custom (use selected modules)" },
   { value: "quick", label: "Quick — crts, dns, httpx, tls, headers" },
   { value: "web", label: "Web — full web security scan" },
   { value: "full", label: "Full — all modules" },
@@ -88,7 +88,7 @@ export default function NewScanPage() {
   const [selectedModules, setSelectedModules] = useState<Set<string>>(
     new Set(["httpx", "tls", "headers", "cors"])
   );
-  const [profile, setProfile] = useState("");
+  const [profile, setProfile] = useState("custom");
   const [ports, setPorts] = useState("top-1000");
   const [noSubs, setNoSubs] = useState(false);
   const [passive, setPassive] = useState(false);
@@ -132,12 +132,12 @@ export default function NewScanPage() {
       return;
     }
 
-    const modules =
-      profile !== ""
-        ? []
-        : selectedModules.size > 0
+    const isCustom = profile === "custom";
+    const modules = isCustom
+      ? selectedModules.size > 0
         ? Array.from(selectedModules)
-        : ["httpx", "tls", "headers"];
+        : ["httpx", "tls", "headers"]
+      : [];
 
     setSubmitting(true);
     try {
@@ -149,7 +149,7 @@ export default function NewScanPage() {
           no_subs: noSubs,
           passive,
           ports,
-          profile,
+          profile: isCustom ? "" : profile,
           rate,
           threads,
         },
@@ -270,7 +270,7 @@ export default function NewScanPage() {
           </Card>
 
           {/* Module Selector */}
-          {profile === "" && (
+          {profile === "custom" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
