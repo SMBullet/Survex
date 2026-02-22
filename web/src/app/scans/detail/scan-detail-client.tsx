@@ -90,9 +90,9 @@ function logClass(line: string): string {
   if (/cms-scan:|wpscan|droopescan|joomscan/.test(l)) return "text-purple-400";
   if (/techdetect:|fingerprinting tech|→ /.test(l))  return "text-violet-400";
   if (/found \d|discover|\benabled\b|detect/.test(l)) return "text-red-400";
-  if (/skipped|skip|no /.test(l))                    return "text-zinc-600";
-  if (/\[survex\]/.test(l))                          return "text-zinc-400";
-  return "text-zinc-500";
+  if (/skipped|skip|no /.test(l))                    return "text-muted-foreground/70";
+  if (/\[survex\]/.test(l))                          return "text-muted-foreground";
+  return "text-muted-foreground";
 }
 
 // ── Technology display ────────────────────────────────────────────────────────
@@ -103,20 +103,20 @@ const CATEGORY_STYLE: Record<string, { bg: string; text: string; border: string 
   "Framework":   { bg: "bg-orange-500/12",  text: "text-orange-300",  border: "border-orange-500/25" },
   "JavaScript":  { bg: "bg-yellow-500/12",  text: "text-yellow-300",  border: "border-yellow-500/25" },
   "Language":    { bg: "bg-cyan-500/12",    text: "text-cyan-300",    border: "border-cyan-500/25"   },
-  "Web Server":  { bg: "bg-zinc-500/15",    text: "text-zinc-300",    border: "border-zinc-500/25"   },
+  "Web Server":  { bg: "bg-zinc-500/15",    text: "text-foreground/90",    border: "border-zinc-500/25"   },
   "CDN":         { bg: "bg-teal-500/12",    text: "text-teal-300",    border: "border-teal-500/25"   },
-  "WAF":         { bg: "bg-red-500/12",     text: "text-red-300",     border: "border-red-500/25"    },
+  "WAF":         { bg: "bg-red-500/12",     text: "text-red-300",     border: "border-primary/25"    },
   "Analytics":   { bg: "bg-green-500/12",   text: "text-green-300",   border: "border-green-500/25"  },
 };
-const DEFAULT_STYLE = { bg: "bg-zinc-800/40", text: "text-zinc-400", border: "border-zinc-700/30" };
+const DEFAULT_STYLE = { bg: "bg-zinc-800/40", text: "text-muted-foreground", border: "border-zinc-700/30" };
 
 // ── CVSS score badge ──────────────────────────────────────────────────────────
 
 function CVSSBadge({ score, vector }: { score?: number; vector?: string }) {
   if (!score || score <= 0) return null;
 
-  let color = "text-zinc-400 border-zinc-600/40 bg-zinc-700/20";
-  if (score >= 9.0)      color = "text-red-400 border-red-500/30 bg-red-500/10";
+  let color = "text-muted-foreground border-zinc-600/40 bg-zinc-700/20";
+  if (score >= 9.0)      color = "text-red-400 border-primary/30 bg-red-500/10";
   else if (score >= 7.0) color = "text-orange-400 border-orange-500/30 bg-orange-500/10";
   else if (score >= 4.0) color = "text-yellow-400 border-yellow-500/30 bg-yellow-500/10";
   else                   color = "text-blue-400 border-blue-500/30 bg-blue-500/10";
@@ -160,12 +160,12 @@ function parseCMSScanActivity(logs: string[]): { cms: string; tool: string; find
 // ── Severity theming ──────────────────────────────────────────────────────────
 
 const SEV_THEME: Record<string, { border: string; glow: string; badge: string }> = {
-  critical: { border: "border-red-500/30",    glow: "shadow-red-500/10",    badge: "text-red-400" },
+  critical: { border: "border-primary/30",    glow: "shadow-red-500/10",    badge: "text-red-400" },
   high:     { border: "border-orange-500/30", glow: "shadow-orange-500/10", badge: "text-orange-400" },
   medium:   { border: "border-yellow-500/20", glow: "shadow-yellow-500/10", badge: "text-yellow-400" },
   low:      { border: "border-blue-500/20",   glow: "shadow-blue-500/10",   badge: "text-blue-400" },
-  info:     { border: "border-zinc-700/40",   glow: "",                     badge: "text-zinc-400" },
-  "":       { border: "border-white/[0.07]",  glow: "",                     badge: "text-zinc-500" },
+  info:     { border: "border-zinc-700/40",   glow: "",                     badge: "text-muted-foreground" },
+  "":       { border: "border-border",  glow: "",                     badge: "text-muted-foreground" },
 };
 
 function formatDuration(start: string, end?: string | null) {
@@ -176,11 +176,11 @@ function formatDuration(start: string, end?: string | null) {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  queued:    "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",
+  queued:    "bg-zinc-500/15 text-muted-foreground border-zinc-500/25",
   running:   "bg-blue-500/15 text-blue-400 border-blue-500/25",
-  done:      "bg-red-500/15 text-red-400 border-red-500/25",
-  failed:    "bg-red-500/15 text-red-400 border-red-500/25",
-  cancelled: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",
+  done:      "bg-red-500/15 text-red-400 border-primary/25",
+  failed:    "bg-red-500/15 text-red-400 border-primary/25",
+  cancelled: "bg-zinc-700/20 text-muted-foreground border-zinc-700/25",
 };
 
 const SEV_ORDER = ["critical", "high", "medium", "low", "info", ""];
@@ -429,18 +429,18 @@ export default function ScanDetailClient() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#0d0018] bg-dots">
+      <main className="min-h-screen bg-background bg-dots">
         <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
 
           {/* ── Breadcrumb ─────────────────────────────────────────── */}
-          <div className="flex items-center gap-2 text-xs text-zinc-600">
-            <span className="hover:text-zinc-400 cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+            <span className="hover:text-muted-foreground cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-zinc-400 font-mono">{scan?.client ?? id}</span>
+            <span className="text-muted-foreground font-mono">{scan?.client ?? id}</span>
           </div>
 
           {/* ── Header ────────────────────────────────────────────── */}
-          <div className={`rounded-xl border bg-[#160025]/80 p-5 shadow-lg ${sevTheme.border} ${sevTheme.glow}`}>
+          <div className={`rounded-xl border bg-card p-5 shadow-lg ${sevTheme.border} ${sevTheme.glow}`}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-2">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -461,18 +461,18 @@ export default function ScanDetailClient() {
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-zinc-600 font-mono">{id}</p>
+                <p className="text-[11px] text-muted-foreground/70 font-mono">{id}</p>
 
                 {/* Progress bar (only when running) */}
                 {isActive && (
                   <div className="flex items-center gap-3 pt-1">
-                    <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden max-w-[200px]">
+                    <div className="flex-1 h-1 rounded-full bg-muted/50 overflow-hidden max-w-[200px]">
                       <div
                         className="h-full bg-red-500/60 rounded-full transition-all duration-500"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-zinc-600 font-mono">{progress}%</span>
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">{progress}%</span>
                   </div>
                 )}
               </div>
@@ -482,7 +482,7 @@ export default function ScanDetailClient() {
                   <a
                     href={api.scans.reportUrl(id)}
                     target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors"
+                    className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     HTML Report
@@ -492,7 +492,7 @@ export default function ScanDetailClient() {
                   <button
                     onClick={handleCancel}
                     disabled={cancelling}
-                    className="flex items-center gap-2 rounded-lg border border-red-500/25 bg-red-500/8 hover:bg-red-500/15 px-3.5 py-2 text-[13px] font-medium text-red-400 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/8 hover:bg-red-500/15 px-3.5 py-2 text-[13px] font-medium text-red-400 transition-colors disabled:opacity-50"
                   >
                     {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}
                     {cancelling ? "Stopping…" : "Stop Scan"}
@@ -500,7 +500,7 @@ export default function ScanDetailClient() {
                 )}
                 <button
                   onClick={() => fetchScan()}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.07] text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-all"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
@@ -512,13 +512,13 @@ export default function ScanDetailClient() {
           {scan && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { icon: <Target className="h-3.5 w-3.5" />,         label: "Target",   val: <span className="font-mono text-[11px] text-zinc-300 truncate block">{scan.targets}</span> },
-                { icon: <Layers className="h-3.5 w-3.5" />,         label: "Modules",  val: <span className="font-mono text-[11px] text-zinc-300 truncate block">{scan.modules || "(profile)"}</span> },
+                { icon: <Target className="h-3.5 w-3.5" />,         label: "Target",   val: <span className="font-mono text-[11px] text-foreground/90 truncate block">{scan.targets}</span> },
+                { icon: <Layers className="h-3.5 w-3.5" />,         label: "Modules",  val: <span className="font-mono text-[11px] text-foreground/90 truncate block">{scan.modules || "(profile)"}</span> },
                 { icon: <AlertTriangle className="h-3.5 w-3.5" />,  label: "Findings", val: <div className="flex items-center gap-2"><span className="text-2xl font-bold text-white tabular-nums">{scan.finding_count}</span><SeverityBadge severity={scan.max_severity ?? ""} /></div> },
                 { icon: <Clock className="h-3.5 w-3.5" />,          label: "Duration", val: <span className="text-2xl font-bold text-white tabular-nums">{scan.started_at ? formatDuration(scan.started_at, scan.finished_at) : "—"}</span> },
               ].map(({ icon, label, val }) => (
-                <div key={label} className="rounded-xl border border-white/[0.07] bg-[#160025]/60 p-4">
-                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2">
+                <div key={label} className="rounded-xl border border-border bg-card/90 p-4">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-bold mb-2">
                     {icon}{label}
                   </div>
                   {val}
@@ -531,8 +531,8 @@ export default function ScanDetailClient() {
           <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
 
             {/* Step tracker */}
-            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 p-4 h-fit">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-700 mb-4 px-1">
+            <div className="rounded-xl border border-border bg-card/90 p-4 h-fit">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4 px-1">
                 Pipeline
               </p>
               <div className="space-y-0">
@@ -541,9 +541,9 @@ export default function ScanDetailClient() {
                     {/* Icon + connector */}
                     <div className="flex flex-col items-center">
                       <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all ${
-                        step.status === "done"   ? "bg-red-500/15 text-red-400 border border-red-500/30" :
+                        step.status === "done"   ? "bg-red-500/15 text-red-400 border border-primary/30" :
                         step.status === "active" ? "bg-blue-500/15 text-blue-400 border border-blue-500/40 ring-2 ring-blue-500/15" :
-                                                   "bg-white/[0.03] text-zinc-700 border border-white/[0.06]"
+                                                   "bg-muted/40 text-muted-foreground/50 border border-border"
                       }`}>
                         {step.status === "active"
                           ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -559,9 +559,9 @@ export default function ScanDetailClient() {
                     <div className="pb-2.5 pt-0.5 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className={`text-[13px] leading-tight ${
-                          step.status === "done"   ? "text-zinc-300 font-medium" :
+                          step.status === "done"   ? "text-foreground/90 font-medium" :
                           step.status === "active" ? "text-blue-400 font-semibold" :
-                                                     "text-zinc-700"
+                                                     "text-muted-foreground/50"
                         }`}>
                           {step.label}
                         </p>
@@ -569,7 +569,7 @@ export default function ScanDetailClient() {
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tabular-nums ${
                             step.status === "active"
                               ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
-                              : "border-red-500/25 bg-red-500/8 text-red-500"
+                              : "border-primary/25 bg-primary/8 text-red-500"
                           }`}>
                             {step.count}
                           </span>
@@ -592,22 +592,22 @@ export default function ScanDetailClient() {
             </div>
 
             {/* Terminal */}
-            <div className="rounded-xl border border-white/[0.07] bg-[#0d0018] overflow-hidden flex flex-col">
+            <div className="rounded-xl border border-border bg-background overflow-hidden flex flex-col">
               {/* Terminal chrome */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#0a0014]">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-secondary">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1.5">
                     <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
                     <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
                     <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-600 font-mono">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 font-mono">
                     <Terminal className="h-3 w-3" />
                     survex — scan output
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-zinc-700 font-mono">{logs.length} lines</span>
+                  <span className="text-[10px] text-muted-foreground/50 font-mono">{logs.length} lines</span>
                   {wsConnected && (
                     <span className="flex items-center gap-1.5 text-[10px] text-blue-400 font-mono">
                       <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
@@ -624,7 +624,7 @@ export default function ScanDetailClient() {
                 style={{ minHeight: "480px", maxHeight: "600px" }}
               >
                 {logs.length === 0 ? (
-                  <span className="text-zinc-700">
+                  <span className="text-muted-foreground/50">
                     {scan?.status === "queued"
                       ? "⏳  Scan queued — waiting for worker…"
                       : "No output yet."}
@@ -643,8 +643,8 @@ export default function ScanDetailClient() {
 
           {/* ── Technologies panel ─────────────────────────────────── */}
           {technologies.length > 0 && (
-            <div className="rounded-xl border border-violet-500/20 bg-[#160025]/60 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.05] bg-violet-500/[0.03]">
+            <div className="rounded-xl border border-violet-500/20 bg-card/90 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-violet-500/[0.03]">
                 <div className="flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-violet-400" />
                   <span className="text-[13px] font-semibold text-white">Technologies Detected</span>
@@ -665,7 +665,7 @@ export default function ScanDetailClient() {
                   const style = CATEGORY_STYLE[category] ?? DEFAULT_STYLE;
                   return (
                     <div key={category}>
-                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-700 mb-2.5">{category}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2.5">{category}</p>
                       <div className="flex flex-wrap gap-2">
                         {techs.map((t, i) => (
                           <div key={i} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium ${style.bg} ${style.text} ${style.border}`}>
@@ -681,18 +681,18 @@ export default function ScanDetailClient() {
 
                 {/* CMS scan results */}
                 {cmsActivity.length > 0 && (
-                  <div className="border-t border-white/[0.05] pt-4">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-700 mb-3">CMS Scan Results</p>
+                  <div className="border-t border-border pt-4">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-3">CMS Scan Results</p>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {cmsActivity.map((a, i) => (
-                        <div key={i} className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5">
+                        <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-3.5 py-2.5">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-purple-500/20 bg-purple-500/8 text-purple-400">
                             <Zap className="h-3.5 w-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[12px] font-semibold text-zinc-300 capitalize">{a.cms}</p>
-                            <p className="text-[11px] text-zinc-600">
-                              <span className="font-mono text-zinc-500">{a.tool}</span>
+                            <p className="text-[12px] font-semibold text-foreground/90 capitalize">{a.cms}</p>
+                            <p className="text-[11px] text-muted-foreground/70">
+                              <span className="font-mono text-muted-foreground">{a.tool}</span>
                               {" → "}
                               <span className={a.findings > 0 ? "text-red-400 font-bold" : "text-red-400"}>
                                 {a.findings} finding{a.findings !== 1 ? "s" : ""}
@@ -707,7 +707,7 @@ export default function ScanDetailClient() {
 
                 {/* Install hint */}
                 {detectedCMSNames.length > 0 && cmsActivity.length === 0 && (
-                  <div className="border-t border-white/[0.05] pt-3 flex items-start gap-2 text-[11px] text-zinc-600">
+                  <div className="border-t border-border pt-3 flex items-start gap-2 text-[11px] text-muted-foreground/70">
                     <Zap className="h-3.5 w-3.5 shrink-0 mt-0.5 text-violet-500/60" />
                     <span>
                       <span className="text-violet-400 font-medium">CMS detected:</span>{" "}
@@ -725,24 +725,24 @@ export default function ScanDetailClient() {
           {/* ── Findings panel ────────────────────────────────────── */}
           {findings.length > 0 && (() => {
             const SEV_PILLS = [
-              { s: "critical", label: "CRIT",   cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+              { s: "critical", label: "CRIT",   cls: "bg-red-500/15 text-red-400 border-primary/30" },
               { s: "high",     label: "HIGH",   cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
               { s: "medium",   label: "MED",    cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
               { s: "low",      label: "LOW",    cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-              { s: "info",     label: "INFO",   cls: "bg-zinc-700/30 text-zinc-500 border-zinc-600/30" },
+              { s: "info",     label: "INFO",   cls: "bg-zinc-700/30 text-muted-foreground border-zinc-600/30" },
             ];
             const cvssCount = filteredFindings.filter(f => f.cvss_score && f.cvss_score > 0).length;
             const scanName  = scan?.client ?? id;
 
             return (
-              <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
+              <div className="rounded-xl border border-border bg-card/90 overflow-hidden">
 
                 {/* Header */}
-                <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
+                <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
                   <div className="flex items-center gap-2.5">
                     <ShieldAlert className="h-4 w-4 text-orange-400" />
                     <span className="text-[13px] font-semibold text-white">Findings</span>
-                    <span className="text-[11px] text-zinc-600">
+                    <span className="text-[11px] text-muted-foreground/70">
                       {filteredFindings.length}{findings.length !== filteredFindings.length ? ` of ${findings.length}` : ""}
                     </span>
                   </div>
@@ -771,8 +771,8 @@ export default function ScanDetailClient() {
                       onClick={() => setShowFPs(s => !s)}
                       className={`flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-bold transition-all ${
                         showFPs
-                          ? "border-zinc-500/40 bg-zinc-500/15 text-zinc-400"
-                          : "border-zinc-700/30 bg-zinc-800/30 text-zinc-600 hover:text-zinc-400"
+                          ? "border-zinc-500/40 bg-zinc-500/15 text-muted-foreground"
+                          : "border-zinc-700/30 bg-zinc-800/30 text-muted-foreground/70 hover:text-muted-foreground"
                       }`}
                     >
                       {showFPs ? <Undo2 className="h-2.5 w-2.5" /> : <Ban className="h-2.5 w-2.5" />}
@@ -781,7 +781,7 @@ export default function ScanDetailClient() {
                   )}
 
                   {cvssCount > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] text-zinc-600 font-mono">
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70 font-mono">
                       <Shield className="h-3 w-3" />
                       {cvssCount} CVSS scored
                     </span>
@@ -791,14 +791,14 @@ export default function ScanDetailClient() {
                   <div className="ml-auto flex items-center gap-1.5">
                     <button
                       onClick={() => exportJSON(filteredFindings, `${scanName}-findings.json`)}
-                      className="flex items-center gap-1.5 rounded border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                      className="flex items-center gap-1.5 rounded border border-border bg-muted/40 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all"
                     >
                       <Download className="h-3 w-3" />
                       JSON
                     </button>
                     <button
                       onClick={() => exportCSV(filteredFindings, `${scanName}-findings.csv`)}
-                      className="flex items-center gap-1.5 rounded border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                      className="flex items-center gap-1.5 rounded border border-border bg-muted/40 px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all"
                     >
                       <Download className="h-3 w-3" />
                       CSV
@@ -822,11 +822,11 @@ export default function ScanDetailClient() {
                   </div>
                   <div className="px-4 py-3 text-[12px] leading-relaxed">
                     {aiSummary ? (
-                      <p className="text-zinc-300 whitespace-pre-wrap">{aiSummary}</p>
+                      <p className="text-foreground/90 whitespace-pre-wrap">{aiSummary}</p>
                     ) : aiSummaryError ? (
                       <p className="text-red-400">{aiSummaryError}</p>
                     ) : (
-                      <p className="text-zinc-700">Click Generate to create an AI-powered executive summary of these findings. Requires AI provider configured in Settings.</p>
+                      <p className="text-muted-foreground/50">Click Generate to create an AI-powered executive summary of these findings. Requires AI provider configured in Settings.</p>
                     )}
                   </div>
                 </div>
@@ -834,24 +834,24 @@ export default function ScanDetailClient() {
                 {/* Search + filter bar */}
                 <div className="flex items-center gap-3 px-5 py-2.5 border-b border-white/[0.04] bg-white/[0.005]">
                   <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-700" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
                     <input
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       placeholder="Search title, asset, detail…"
-                      className="w-full rounded-md border border-white/[0.06] bg-[#0a0014] pl-8 pr-3 py-1.5 text-[11px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-500/40 transition-all"
+                      className="w-full rounded-md border border-border bg-secondary pl-8 pr-3 py-1.5 text-[11px] text-foreground/90 placeholder:text-muted-foreground/50 focus:outline-none focus:border-zinc-500/40 transition-all"
                     />
                   </div>
                   {(sevFilter || searchQuery) && (
                     <button
                       onClick={() => { setSevFilter(null); setSearchQuery(""); }}
-                      className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
                     >
                       <Filter className="h-3 w-3" />
                       Clear
                     </button>
                   )}
-                  <span className="ml-auto text-[10px] text-zinc-700">
+                  <span className="ml-auto text-[10px] text-muted-foreground/50">
                     {filteredFindings.length} shown
                   </span>
                 </div>
@@ -859,14 +859,14 @@ export default function ScanDetailClient() {
                 {/* Column headers */}
                 <div className="hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
                   {["Finding", "Asset", "Risk", "Action", ""].map(h => (
-                    <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
+                    <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{h}</p>
                   ))}
                 </div>
 
                 {/* Rows */}
-                <div className="divide-y divide-white/[0.03]">
+                <div className="divide-y divide-border">
                   {filteredFindings.length === 0 ? (
-                    <div className="py-8 text-center text-[12px] text-zinc-700">
+                    <div className="py-8 text-center text-[12px] text-muted-foreground/50">
                       {(sevFilter || searchQuery) ? "No findings match your filter." : "No findings to display."}
                     </div>
                   ) : filteredFindings.map((f, idx) => {
@@ -883,19 +883,19 @@ export default function ScanDetailClient() {
                         {/* Desktop row */}
                         <div
                           onClick={() => setExpandedFinding(isOpen ? null : idx)}
-                          className={`hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-3.5 cursor-pointer hover:bg-white/[0.02] group transition-colors ${accent}`}
+                          className={`hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-3.5 cursor-pointer hover:bg-muted/20 group transition-colors ${accent}`}
                         >
                           {/* Title */}
                           <div className="flex items-center gap-2 min-w-0 pr-4">
                             {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" title="New" />}
-                            <span className="text-[12px] text-zinc-300 font-medium truncate group-hover:text-white transition-colors leading-tight">
+                            <span className="text-[12px] text-foreground/90 font-medium truncate group-hover:text-white transition-colors leading-tight">
                               {f.title}
                             </span>
                           </div>
                           {/* Asset */}
                           <div className="flex items-center min-w-0 pr-3">
-                            <span className="text-[11px] font-mono text-zinc-600 truncate">
-                              {f.asset}{f.port ? <span className="text-zinc-700">:{f.port}</span> : ""}
+                            <span className="text-[11px] font-mono text-muted-foreground/70 truncate">
+                              {f.asset}{f.port ? <span className="text-muted-foreground/50">:{f.port}</span> : ""}
                             </span>
                           </div>
                           {/* Severity + CVSS inline */}
@@ -911,8 +911,8 @@ export default function ScanDetailClient() {
                               title={isFP ? "Remove false positive mark" : "Mark as false positive"}
                               className={`flex items-center gap-1 rounded border px-2 py-1 text-[9px] font-bold transition-all ${
                                 isFP
-                                  ? "border-zinc-600/40 bg-zinc-700/20 text-zinc-500 hover:border-red-500/30 hover:bg-red-500/8 hover:text-red-400"
-                                  : "border-white/[0.06] bg-transparent text-zinc-700 hover:border-orange-500/30 hover:bg-orange-500/8 hover:text-orange-400"
+                                  ? "border-zinc-600/40 bg-zinc-700/20 text-muted-foreground hover:border-primary/30 hover:bg-primary/8 hover:text-red-400"
+                                  : "border-border bg-transparent text-muted-foreground/50 hover:border-orange-500/30 hover:bg-orange-500/8 hover:text-orange-400"
                               }`}
                             >
                               {isMarkingThis ? (
@@ -926,15 +926,15 @@ export default function ScanDetailClient() {
                           </div>
                           {/* Chevron */}
                           <div className="flex items-center justify-end">
-                            <ChevronDown className={`h-3 w-3 text-zinc-700 group-hover:text-zinc-500 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
+                            <ChevronDown className={`h-3 w-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} />
                           </div>
                         </div>
 
                         {/* Expanded detail */}
                         {isOpen && (
-                          <div className="hidden sm:block mx-5 mb-1 rounded-lg border border-white/[0.06] bg-[#0a0014]/80 p-4">
+                          <div className="hidden sm:block mx-5 mb-1 rounded-lg border border-border bg-secondary/80 p-4">
                             {f.detail && (
-                              <p className="text-[11px] font-mono text-zinc-500 leading-relaxed break-all mb-3">{f.detail}</p>
+                              <p className="text-[11px] font-mono text-muted-foreground leading-relaxed break-all mb-3">{f.detail}</p>
                             )}
 
                             {/* AI Explain */}
@@ -955,28 +955,28 @@ export default function ScanDetailClient() {
                               </div>
                               <div className="px-3 py-2 text-[11px] leading-relaxed">
                                 {explainLoading[idx] ? (
-                                  <span className="text-zinc-600 flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Analyzing finding…</span>
+                                  <span className="text-muted-foreground/70 flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Analyzing finding…</span>
                                 ) : explainTexts[idx] ? (
-                                  <p className="text-zinc-300 whitespace-pre-wrap">{explainTexts[idx]}</p>
+                                  <p className="text-foreground/90 whitespace-pre-wrap">{explainTexts[idx]}</p>
                                 ) : (
-                                  <p className="text-zinc-700">Click &quot;Explain this&quot; for an AI-powered breakdown of impact and remediation.</p>
+                                  <p className="text-muted-foreground/50">Click &quot;Explain this&quot; for an AI-powered breakdown of impact and remediation.</p>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-white/[0.05]">
+                            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-border">
                               {f.cvss_score && f.cvss_score > 0 && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-700">CVSS</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">CVSS</span>
                                   <CVSSBadge score={f.cvss_score} vector={f.cvss_vector} />
                                   {f.cvss_vector && (
-                                    <span className="text-[10px] font-mono text-zinc-700">{f.cvss_vector}</span>
+                                    <span className="text-[10px] font-mono text-muted-foreground/50">{f.cvss_vector}</span>
                                   )}
                                 </div>
                               )}
                               <div className="flex items-center gap-2 ml-auto">
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-700">First Seen</span>
-                                <span className="text-[10px] text-zinc-600 font-mono">{new Date(f.first_seen).toLocaleString()}</span>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">First Seen</span>
+                                <span className="text-[10px] text-muted-foreground/70 font-mono">{new Date(f.first_seen).toLocaleString()}</span>
                               </div>
                             </div>
                           </div>
@@ -985,13 +985,13 @@ export default function ScanDetailClient() {
                         {/* Mobile row */}
                         <div
                           onClick={() => setExpandedFinding(isOpen ? null : idx)}
-                          className={`sm:hidden flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] ${accent}`}
+                          className={`sm:hidden flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/20 ${accent}`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400" />}
                             <div className="min-w-0">
-                              <p className="text-[12px] font-medium text-zinc-300 truncate">{f.title}</p>
-                              <p className="text-[10px] text-zinc-600 font-mono truncate">{f.asset}{f.port ? `:${f.port}` : ""}</p>
+                              <p className="text-[12px] font-medium text-foreground/90 truncate">{f.title}</p>
+                              <p className="text-[10px] text-muted-foreground/70 font-mono truncate">{f.asset}{f.port ? `:${f.port}` : ""}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -1002,13 +1002,13 @@ export default function ScanDetailClient() {
 
                         {/* Mobile expanded */}
                         {isOpen && (
-                          <div className="sm:hidden mx-4 mb-2 rounded-lg border border-white/[0.06] bg-[#0a0014]/80 p-3">
-                            {f.detail && <p className="text-[10px] font-mono text-zinc-500 leading-relaxed break-all">{f.detail}</p>}
+                          <div className="sm:hidden mx-4 mb-2 rounded-lg border border-border bg-secondary/80 p-3">
+                            {f.detail && <p className="text-[10px] font-mono text-muted-foreground leading-relaxed break-all">{f.detail}</p>}
                             <div className="flex items-center gap-2 mt-2">
                               <button
                                 onClick={e => { e.stopPropagation(); handleToggleFP(f); }}
                                 disabled={isMarkingThis}
-                                className="flex items-center gap-1 rounded border border-white/[0.06] px-2 py-1 text-[9px] font-bold text-zinc-600 hover:text-orange-400 hover:border-orange-500/30 transition-all"
+                                className="flex items-center gap-1 rounded border border-border px-2 py-1 text-[9px] font-bold text-muted-foreground/70 hover:text-orange-400 hover:border-orange-500/30 transition-all"
                               >
                                 {isFP ? <><Undo2 className="h-2.5 w-2.5" /> Unmark FP</> : <><Ban className="h-2.5 w-2.5" /> Mark FP</>}
                               </button>
@@ -1025,7 +1025,7 @@ export default function ScanDetailClient() {
 
           {/* ── Error ─────────────────────────────────────────────── */}
           {scan?.error && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+            <div className="rounded-xl border border-primary/20 bg-red-500/5 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <XCircle className="h-4 w-4 text-red-400" />
                 <p className="text-[13px] font-semibold text-red-400">Scan Error</p>

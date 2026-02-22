@@ -5,8 +5,8 @@ const cfg: Record<string, { cls: string; dot: string }> = {
   high:     { cls: "bg-orange-500/15 text-orange-400 border border-orange-500/30", dot: "bg-orange-400" },
   medium:   { cls: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30", dot: "bg-yellow-400" },
   low:      { cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30",  dot: "bg-blue-400" },
-  info:     { cls: "bg-zinc-500/15 text-zinc-400 border border-zinc-500/30",  dot: "bg-zinc-500" },
-  "":       { cls: "bg-zinc-800/50 text-zinc-600 border border-zinc-700/30",  dot: "bg-zinc-700" },
+  info:     { cls: "bg-zinc-500/12 text-zinc-600 dark:text-zinc-400 border border-zinc-500/25",  dot: "bg-zinc-500" },
+  "":       { cls: "bg-muted text-muted-foreground border border-border",                         dot: "bg-muted-foreground/40" },
 };
 
 export function SeverityBadge({ severity }: { severity: string }) {

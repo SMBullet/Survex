@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { ScanJob } from "@/lib/api";
@@ -10,41 +11,44 @@ import {
   Shield, LayoutDashboard, Plus, LogOut,
   Cloud, ChevronDown, Server, Database, Cpu,
   Github, GitBranch, Radar, CalendarClock,
-  Settings, Globe,
+  Settings, Sun, Moon,
 } from "lucide-react";
 
-// ── Nav item ─────────────────────────────────────────────────────────────────
+// ── Nav item ──────────────────────────────────────────────────────────────────
 
 function NavItem({
-  href, icon, label, active, accent, small, badge,
+  href, icon, label, active, highlight, small, badge,
 }: {
   href: string; icon: React.ReactNode; label: string;
-  active: boolean; accent?: boolean; small?: boolean; badge?: number;
+  active: boolean; highlight?: boolean; small?: boolean; badge?: number;
 }) {
   return (
     <Link
       href={href}
       className={`
-        group relative flex items-center gap-2.5 rounded-md px-3 transition-all duration-150
+        group relative flex items-center gap-2.5 rounded-lg px-3 transition-all duration-150
         ${small ? "py-1.5 text-[11px]" : "py-2 text-[13px]"}
         ${active
-          ? "bg-red-500/10 text-red-400 font-medium"
-          : accent
-            ? "text-red-500/70 hover:text-red-400 hover:bg-red-500/8"
-            : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+          ? "bg-primary/10 text-primary font-medium"
+          : highlight
+            ? "text-primary/70 hover:text-primary hover:bg-primary/8"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
         }
       `}
     >
-      {/* Active left-border glow */}
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[55%] w-[2px] rounded-r-full bg-red-400 glow-sm-red" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[55%] w-[2.5px] rounded-r-full bg-primary" />
       )}
-      <span className={`shrink-0 ${active ? "text-red-400" : accent ? "text-red-600" : "text-zinc-600 group-hover:text-zinc-400"}`}>
+      <span className={`shrink-0 transition-colors ${
+        active     ? "text-primary"
+        : highlight ? "text-primary/60"
+        :             "text-muted-foreground/60 group-hover:text-muted-foreground"
+      }`}>
         {icon}
       </span>
       <span className="truncate flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500/20 border border-red-500/30 px-1 text-[10px] font-bold text-red-400">
+        <span className="ml-auto shrink-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary/15 border border-primary/25 px-1.5 text-[10px] font-bold text-primary">
           {badge}
         </span>
       )}
@@ -52,14 +56,30 @@ function NavItem({
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 pb-1.5 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50 select-none">
+      {children}
+    </p>
+  );
+}
+
+function Divider() {
+  return <div className="mx-2 my-1 h-px bg-border" />;
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
-  const { user, logout } = useAuth();
-  const pathname  = usePathname();
-  const router    = useRouter();
-  const [cloudOpen, setCloudOpen]     = useState(false);
+  const { user, logout }    = useAuth();
+  const pathname            = usePathname();
+  const router              = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [mounted,     setMounted]     = useState(false);
+  const [cloudOpen,   setCloudOpen]   = useState(false);
   const [activeScans, setActiveScans] = useState(0);
+
+  useEffect(() => setMounted(true), []);
 
   const fetchActiveScans = useCallback(async () => {
     try {
@@ -84,82 +104,81 @@ export function Sidebar() {
   const initials = user.email.slice(0, 2).toUpperCase();
 
   return (
-    <aside className="flex h-screen w-52 shrink-0 flex-col border-r border-white/[0.06] bg-[#0a0014]">
+    <aside className="flex h-screen w-[210px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
 
       {/* Logo */}
-      <div className="flex h-14 items-center gap-3 border-b border-white/[0.06] px-4">
-        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10">
-          <Shield className="h-4 w-4 text-red-400" />
+      <div className="flex h-[54px] items-center gap-3 border-b border-sidebar-border px-4">
+        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+          <Shield className="h-4 w-4 text-primary" />
           {activeScans > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-[#0a0014] bg-amber-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
-            </span>
+            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border-2 border-sidebar bg-primary" />
           )}
         </div>
         <div className="flex flex-col leading-none gap-0.5">
-          <span className="text-[13px] font-bold tracking-widest text-white">SURVEX</span>
-          <span className="text-[9px] tracking-widest text-red-500/50 font-semibold">ASM PLATFORM</span>
+          <span className="text-[13px] font-bold tracking-widest text-foreground">SURVEX</span>
+          <span className="text-[9px] tracking-widest text-muted-foreground/50 font-medium">ASM PLATFORM</span>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-3">
 
         <div>
-          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Overview</p>
+          <SectionLabel>Overview</SectionLabel>
           <div className="space-y-0.5">
             <NavItem href="/dashboard" icon={<LayoutDashboard className="h-3.5 w-3.5" />} label="Dashboard"    active={is("/dashboard")} />
-            <NavItem href="/scans/new" icon={<Plus className="h-3.5 w-3.5" />}            label="New Scan"     active={is("/scans/new")} accent />
-            <NavItem href="/dashboard" icon={<Radar className="h-3.5 w-3.5" />}           label="Active Scans" active={false} badge={activeScans} />
+            <NavItem href="/scans/new" icon={<Plus           className="h-3.5 w-3.5" />} label="New Scan"     active={is("/scans/new")} highlight />
+            <NavItem href="/dashboard" icon={<Radar          className="h-3.5 w-3.5" />} label="Active Scans" active={false} badge={activeScans} />
           </div>
         </div>
 
-        <div className="h-px mx-1 bg-white/[0.05]" />
+        <Divider />
 
         <div>
-          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Intelligence</p>
+          <SectionLabel>Intelligence</SectionLabel>
           <div className="space-y-0.5">
-            <NavItem href="/assets"    icon={<Database className="h-3.5 w-3.5" />}     label="Asset Inventory" active={sw("/assets")} />
-            <NavItem href="/schedules" icon={<CalendarClock className="h-3.5 w-3.5" />} label="Schedules"      active={sw("/schedules")} />
+            <NavItem href="/assets"    icon={<Database      className="h-3.5 w-3.5" />} label="Asset Inventory" active={sw("/assets")} />
+            <NavItem href="/schedules" icon={<CalendarClock className="h-3.5 w-3.5" />} label="Schedules"       active={sw("/schedules")} />
           </div>
         </div>
 
-        <div className="h-px mx-1 bg-white/[0.05]" />
+        <Divider />
 
         <div>
-          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Discovery</p>
+          <SectionLabel>Discovery</SectionLabel>
           <div className="space-y-0.5">
 
-            {/* Cloud collapsible */}
             <button
               type="button"
               onClick={() => setCloudOpen(o => !o)}
-              className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-all duration-150 ${
-                sw("/cloud") ? "bg-red-500/10 text-red-400 font-medium" : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+              className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-all duration-150 ${
+                sw("/cloud")
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
               }`}
             >
-              <Cloud className={`h-3.5 w-3.5 shrink-0 ${sw("/cloud") ? "text-red-400" : "text-zinc-600"}`} />
+              <Cloud className={`h-3.5 w-3.5 shrink-0 ${sw("/cloud") ? "text-primary" : "text-muted-foreground/60"}`} />
               <span className="flex-1 text-left">Cloud Assets</span>
-              <ChevronDown className={`h-3 w-3 shrink-0 text-zinc-600 transition-transform duration-200 ${cloudOpen ? "" : "-rotate-90"}`} />
+              <ChevronDown className={`h-3 w-3 shrink-0 text-muted-foreground/40 transition-transform duration-200 ${cloudOpen ? "" : "-rotate-90"}`} />
             </button>
 
             {cloudOpen && (
-              <div className="ml-4 pl-3 space-y-0.5 border-l border-white/[0.05]">
-                <NavItem href="/cloud/aws"   icon={<Server className="h-3 w-3" />}   label="AWS"   active={is("/cloud/aws")}   small />
+              <div className="ml-4 pl-2.5 space-y-0.5 border-l border-border">
+                <NavItem href="/cloud/aws"   icon={<Server   className="h-3 w-3" />} label="AWS"   active={is("/cloud/aws")}   small />
                 <NavItem href="/cloud/azure" icon={<Database className="h-3 w-3" />} label="Azure" active={is("/cloud/azure")} small />
-                <NavItem href="/cloud/gcp"   icon={<Cpu className="h-3 w-3" />}      label="GCP"   active={is("/cloud/gcp")}   small />
+                <NavItem href="/cloud/gcp"   icon={<Cpu      className="h-3 w-3" />} label="GCP"   active={is("/cloud/gcp")}   small />
               </div>
             )}
 
-            <NavItem href="/github" icon={<Github className="h-3.5 w-3.5" />}    label="GitHub" active={is("/github")} />
+            <NavItem href="/github" icon={<Github    className="h-3.5 w-3.5" />} label="GitHub" active={is("/github")} />
             <NavItem href="/gitlab" icon={<GitBranch className="h-3.5 w-3.5" />} label="GitLab" active={is("/gitlab")} />
           </div>
         </div>
 
-        <div className="h-px mx-1 bg-white/[0.05]" />
+        <Divider />
 
         <div>
-          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-700">Platform</p>
+          <SectionLabel>Platform</SectionLabel>
           <div className="space-y-0.5">
             <NavItem href="/settings" icon={<Settings className="h-3.5 w-3.5" />} label="Settings" active={sw("/settings")} />
           </div>
@@ -168,29 +187,40 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-white/[0.06] p-3 space-y-2.5">
-        {/* Status */}
-        <div className="flex items-center gap-2 px-1">
-          <span className="relative flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-50" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400" />
+      <div className="border-t border-sidebar-border p-3 space-y-2">
+        <div className="flex items-center gap-1.5 px-1">
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
           </span>
-          <span className="text-[10px] font-bold tracking-widest text-red-500/60">SYSTEM ONLINE</span>
+          <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/40 uppercase">Online</span>
         </div>
-        {/* User row */}
+
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[11px] font-bold text-zinc-300">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/12 border border-primary/20 text-[11px] font-bold text-primary">
             {initials}
           </div>
-          <span className="text-[11px] text-zinc-500 truncate flex-1 font-mono min-w-0" title={user.email}>
+          <span className="flex-1 min-w-0 text-[11px] text-muted-foreground truncate font-mono" title={user.email}>
             {user.email}
           </span>
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors"
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
+            >
+              {theme === "dark"
+                ? <Sun  className="h-3.5 w-3.5" />
+                : <Moon className="h-3.5 w-3.5" />
+              }
+            </button>
+          )}
           <button
             onClick={handleLogout}
-            className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/8 transition-colors"
             title="Sign out"
           >
-            <LogOut className="h-3 w-3" />
+            <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

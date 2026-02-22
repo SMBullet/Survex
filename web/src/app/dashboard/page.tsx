@@ -25,40 +25,40 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-const STATUS_CFG: Record<string, { dot: string; badge: string; rowExtra: string; label: string }> = {
-  queued:    { dot: "bg-zinc-500",                badge: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",         rowExtra: "",                               label: "QUEUED"    },
-  running:   { dot: "bg-blue-400 animate-pulse",  badge: "bg-blue-500/15 text-blue-400 border-blue-500/25",         rowExtra: "border-l-[2px] border-l-blue-500/60",   label: "RUNNING"   },
-  done:      { dot: "bg-amber-400",               badge: "bg-amber-500/15 text-amber-400 border-amber-500/25",      rowExtra: "",                               label: "DONE"      },
-  failed:    { dot: "bg-red-400",                 badge: "bg-red-500/15 text-red-400 border-red-500/25",            rowExtra: "border-l-[2px] border-l-red-500/60",    label: "FAILED"    },
-  cancelled: { dot: "bg-zinc-600",               badge: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",         rowExtra: "",                               label: "CANCELLED" },
+const STATUS_CFG: Record<string, {
+  dot: string; badge: string; label: string; rowAccent: string;
+}> = {
+  queued:    { dot: "bg-muted-foreground/40",    badge: "bg-muted text-muted-foreground border-border",                          label: "Queued",    rowAccent: "" },
+  running:   { dot: "bg-blue-500 animate-pulse", badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",    label: "Running",   rowAccent: "border-l-2 border-l-blue-500/50" },
+  done:      { dot: "bg-primary",                badge: "bg-primary/10 text-primary border-primary/20",                         label: "Done",      rowAccent: "" },
+  failed:    { dot: "bg-red-500",                badge: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",        label: "Failed",    rowAccent: "border-l-2 border-l-red-500/50" },
+  cancelled: { dot: "bg-muted-foreground/30",    badge: "bg-muted/80 text-muted-foreground/60 border-border",                   label: "Cancelled", rowAccent: "" },
 };
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
 function StatCard({
-  icon, label, value, sub, color,
+  icon, label, value, sub, variant,
 }: {
   icon: React.ReactNode; label: string; value: number | string;
-  sub?: string; color?: "red" | "blue" | "amber" | "violet";
+  sub?: string; variant?: "primary" | "danger" | "active" | "neutral";
 }) {
-  const map = {
-    red:    { border: "border-red-500/20",    icon: "bg-red-500/10 border-red-500/25 text-red-400",          val: "text-red-400"    },
-    blue:   { border: "border-blue-500/20",   icon: "bg-blue-500/10 border-blue-500/25 text-blue-400",       val: "text-blue-400"   },
-    amber:  { border: "border-amber-500/20",  icon: "bg-amber-500/10 border-amber-500/25 text-amber-400",    val: "text-amber-400"  },
-    violet: { border: "border-violet-500/20", icon: "bg-violet-500/10 border-violet-500/25 text-violet-400", val: "text-violet-400" },
+  const styles = {
+    primary: { wrap: "border-primary/20",  icon: "bg-primary/10 border-primary/20 text-primary",                        val: "text-primary" },
+    danger:  { wrap: "border-red-500/20",  icon: "bg-red-500/10 border-red-500/20 text-red-500 dark:text-red-400",     val: "text-red-600 dark:text-red-400" },
+    active:  { wrap: "border-blue-500/20", icon: "bg-blue-500/10 border-blue-500/20 text-blue-500 dark:text-blue-400", val: "text-blue-600 dark:text-blue-400" },
+    neutral: { wrap: "border-border",      icon: "bg-muted border-border text-muted-foreground",                        val: "text-foreground" },
   };
-  const theme = color ? map[color] : { border: "border-white/[0.07]", icon: "bg-white/5 border-white/[0.08] text-zinc-500", val: "text-white" };
+  const s = styles[variant ?? "neutral"];
 
   return (
-    <div className={`rounded-xl border bg-[#160025]/70 p-5 transition-all hover:border-opacity-50 ${theme.border}`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${theme.icon}`}>
-          {icon}
-        </div>
+    <div className={`rounded-xl border bg-card card-shadow p-5 transition-colors ${s.wrap}`}>
+      <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${s.icon} mb-4`}>
+        {icon}
       </div>
-      <p className={`text-3xl font-bold tabular-nums ${theme.val}`}>{value}</p>
-      <p className="text-[11px] font-bold text-zinc-600 uppercase tracking-widest mt-1">{label}</p>
-      {sub && <p className="text-[11px] text-zinc-700 mt-0.5">{sub}</p>}
+      <p className={`text-3xl font-bold tabular-nums tracking-tight ${s.val}`}>{value}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 mt-1">{label}</p>
+      {sub && <p className="text-[11px] text-muted-foreground/50 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -67,19 +67,17 @@ function StatCard({
 
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex flex-col items-center justify-center gap-6 py-24">
-      <div className="relative">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/8 glow-sm-red">
-          <Target className="h-7 w-7 text-red-400/50" />
-        </div>
+    <div className="rounded-xl border border-border bg-card card-shadow flex flex-col items-center justify-center gap-6 py-24">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
+        <Target className="h-6 w-6 text-primary/50" />
       </div>
       <div className="text-center space-y-1.5">
-        <p className="font-semibold text-white">No operations yet</p>
-        <p className="text-sm text-zinc-500">Run your first scan to start mapping your attack surface.</p>
+        <p className="font-semibold text-foreground">No operations yet</p>
+        <p className="text-sm text-muted-foreground">Run your first scan to start mapping your attack surface.</p>
       </div>
       <Link
         href="/scans/new"
-        className="inline-flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors glow-sm-red"
+        className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors"
       >
         <Plus className="h-4 w-4" />
         Start a Scan
@@ -88,12 +86,12 @@ function EmptyState() {
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [scans, setScans]       = useState<ScanJob[]>([]);
+  const [scans,    setScans]    = useState<ScanJob[]>([]);
   const [fetching, setFetching] = useState(true);
 
   const fetchScans = useCallback(async () => {
@@ -119,36 +117,35 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#0d0018] bg-dots">
-        <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+      <main className="min-h-screen bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-8 space-y-7">
 
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Operations Center</h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Operations Center</h1>
+              <p className="text-sm text-muted-foreground">
+                {total} operation{total !== 1 ? "s" : ""} · {done} completed
                 {active > 0 && (
-                  <div className="flex items-center gap-1.5 rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                    <span className="text-[11px] font-bold text-blue-400 tracking-wider">{active} ACTIVE</span>
-                  </div>
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/8 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    {active} active
+                  </span>
                 )}
-              </div>
-              <p className="text-sm text-zinc-500">
-                {total} operation{total !== 1 ? "s" : ""} total · {done} completed
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={fetchScans}
                 disabled={fetching}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all text-sm"
+                title="Refresh"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${fetching ? "animate-spin" : ""}`} />
               </button>
               <Link
                 href="/scans/new"
-                className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
+                className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 New Scan
@@ -158,64 +155,85 @@ export default function Dashboard() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard icon={<Shield className="h-4 w-4" />}        label="Total Scans" value={total} />
-            <StatCard icon={<Activity className="h-4 w-4" />}      label="Active"      value={active}         sub={active > 0 ? "running or queued" : "all idle"}        color={active > 0 ? "blue" : undefined} />
-            <StatCard icon={<CheckCircle2 className="h-4 w-4" />}  label="Completed"   value={done}                                                                      color={done > 0 ? "amber" : undefined} />
-            <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="High Risk"   value={criticalOrHigh} sub={criticalOrHigh > 0 ? "critical or high findings" : "no threats"} color={criticalOrHigh > 0 ? "red" : undefined} />
+            <StatCard
+              icon={<Shield className="h-4 w-4" />}
+              label="Total Scans" value={total}
+              variant="neutral"
+            />
+            <StatCard
+              icon={<Activity className="h-4 w-4" />}
+              label="Active" value={active}
+              sub={active > 0 ? "running or queued" : "all idle"}
+              variant={active > 0 ? "active" : "neutral"}
+            />
+            <StatCard
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              label="Completed" value={done}
+              variant={done > 0 ? "primary" : "neutral"}
+            />
+            <StatCard
+              icon={<AlertTriangle className="h-4 w-4" />}
+              label="High Risk" value={criticalOrHigh}
+              sub={criticalOrHigh > 0 ? "critical or high" : "none found"}
+              variant={criticalOrHigh > 0 ? "danger" : "neutral"}
+            />
           </div>
 
           {/* Scan table */}
           {fetching && scans.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex items-center justify-center h-48">
-              <div className="flex items-center gap-3 text-zinc-500 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />Loading operations…
+            <div className="rounded-xl border border-border bg-card card-shadow flex items-center justify-center h-48">
+              <div className="flex items-center gap-3 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading operations…
               </div>
             </div>
           ) : scans.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
+            <div className="rounded-xl border border-border bg-card card-shadow overflow-hidden">
 
               {/* Column headers */}
-              <div className="hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] gap-0 px-5 py-2.5 border-b border-white/[0.05] bg-white/[0.015]">
+              <div className="hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] px-5 py-3 border-b border-border bg-muted/30">
                 {["Client", "Target", "Modules", "Status", "Hits", "Severity", "When", ""].map(h => (
-                  <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
+                  <p key={h} className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">{h}</p>
                 ))}
               </div>
 
-              <div className="divide-y divide-white/[0.04]">
+              <div className="divide-y divide-border">
                 {scans.map(scan => {
                   const cfg = STATUS_CFG[scan.status] ?? STATUS_CFG.done;
                   return (
                     <div
                       key={scan.id}
                       onClick={() => router.push(`/scans/detail?id=${scan.id}`)}
-                      className={`hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] gap-0 px-5 py-4 cursor-pointer transition-colors hover:bg-white/[0.025] group ${cfg.rowExtra}`}
+                      className={`hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] px-5 py-4 cursor-pointer transition-colors hover:bg-muted/30 group ${cfg.rowAccent}`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <span className={`shrink-0 h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-                        <span className="text-sm font-medium text-zinc-200 truncate group-hover:text-white transition-colors">{scan.client}</span>
+                        <span className={`shrink-0 h-2 w-2 rounded-full ${cfg.dot}`} />
+                        <span className="text-sm font-medium text-foreground truncate">{scan.client}</span>
                       </div>
                       <div className="flex items-center min-w-0 pr-2">
-                        <span className="text-[11px] font-mono text-zinc-500 truncate">{scan.targets}</span>
+                        <span className="text-[12px] font-mono text-muted-foreground truncate">{scan.targets}</span>
                       </div>
                       <div className="flex items-center min-w-0 pr-2">
-                        <span className="text-[11px] text-zinc-600 truncate">{scan.modules || "(profile)"}</span>
+                        <span className="text-[11px] text-muted-foreground/70 truncate">{scan.modules || "(profile)"}</span>
                       </div>
                       <div className="flex items-center">
-                        <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-bold tracking-wider ${cfg.badge}`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium ${cfg.badge}`}>
                           {scan.status === "running" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
                           {cfg.label}
                         </span>
                       </div>
                       <div className="flex items-center">
-                        <span className={`text-sm font-bold tabular-nums ${(scan.finding_count ?? 0) > 0 ? "text-white" : "text-zinc-700"}`}>
+                        <span className={`text-sm font-bold tabular-nums ${(scan.finding_count ?? 0) > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
                           {scan.finding_count ?? 0}
                         </span>
                       </div>
-                      <div className="flex items-center"><SeverityBadge severity={scan.max_severity ?? ""} /></div>
                       <div className="flex items-center">
-                        <span className="text-[11px] text-zinc-600 whitespace-nowrap">{timeAgo(scan.created_at)}</span>
+                        <SeverityBadge severity={scan.max_severity ?? ""} />
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-[11px] text-muted-foreground/60 whitespace-nowrap">{timeAgo(scan.created_at)}</span>
                       </div>
                       <div className="flex items-center justify-end">
                         {scan.status === "done" && scan.report_path ? (
@@ -223,44 +241,49 @@ export default function Dashboard() {
                             href={api.scans.reportUrl(scan.id)}
                             target="_blank" rel="noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="flex h-7 w-7 items-center justify-center rounded border border-white/[0.07] text-zinc-600 hover:text-zinc-200 hover:border-white/20 hover:bg-white/5 transition-all"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
                         )}
                       </div>
                     </div>
                   );
                 })}
 
-                {/* Mobile card fallback */}
+                {/* Mobile cards */}
                 {scans.map(scan => {
                   const cfg = STATUS_CFG[scan.status] ?? STATUS_CFG.done;
                   return (
                     <div
                       key={`m-${scan.id}`}
                       onClick={() => router.push(`/scans/detail?id=${scan.id}`)}
-                      className={`sm:hidden flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-white/[0.03] ${cfg.rowExtra}`}
+                      className={`sm:hidden flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-muted/30 transition-colors ${cfg.rowAccent}`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className={`shrink-0 h-2 w-2 rounded-full ${cfg.dot}`} />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-zinc-200 truncate">{scan.client}</p>
-                          <p className="text-[11px] text-zinc-600 font-mono truncate">{scan.targets}</p>
+                          <p className="text-sm font-medium text-foreground truncate">{scan.client}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono truncate">{scan.targets}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <SeverityBadge severity={scan.max_severity ?? ""} />
-                        <ChevronRight className="h-3.5 w-3.5 text-zinc-700" />
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              <div className="px-5 py-2.5 border-t border-border bg-muted/20">
+                <p className="text-[11px] text-muted-foreground/50">{total} operation{total !== 1 ? "s" : ""} total</p>
+              </div>
             </div>
           )}
+
         </div>
       </main>
     </AppShell>

@@ -22,7 +22,7 @@ function timeAgo(iso: string) {
 
 const TYPE_STYLE: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode }> = {
   subdomain: {
-    bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/25",
+    bg: "bg-primary/10", text: "text-red-400", border: "border-primary/25",
     icon: <Server className="h-3 w-3" />,
   },
   url: {
@@ -31,7 +31,7 @@ const TYPE_STYLE: Record<string, { bg: string; text: string; border: string; ico
   },
 };
 const DEFAULT_STYLE = {
-  bg: "bg-zinc-700/20", text: "text-zinc-500", border: "border-zinc-700/30",
+  bg: "bg-zinc-700/20", text: "text-muted-foreground", border: "border-zinc-700/30",
   icon: <Server className="h-3 w-3" />,
 };
 
@@ -86,31 +86,31 @@ export default function AssetsPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#0d0018] bg-dots">
+      <main className="min-h-screen bg-background bg-dots">
         <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
 
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs text-zinc-600">
-            <span className="hover:text-zinc-400 cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+            <span className="hover:text-muted-foreground cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-zinc-400">Asset Inventory</span>
+            <span className="text-muted-foreground">Asset Inventory</span>
           </div>
 
           {/* Header */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#160025]">
-                <Database className="h-5 w-5 text-zinc-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
+                <Database className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white tracking-tight">Asset Inventory</h1>
-                <p className="text-[12px] text-zinc-600">All discovered assets across every scan — with first and last seen timestamps.</p>
+                <p className="text-[12px] text-muted-foreground/70">All discovered assets across every scan — with first and last seen timestamps.</p>
               </div>
             </div>
             {filtered.length > 0 && (
               <button
                 onClick={exportCSV}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3.5 py-2 text-[13px] font-medium text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3.5 py-2 text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export CSV
@@ -121,7 +121,7 @@ export default function AssetsPage() {
           {/* Stat pills */}
           {!fetching && assets.length > 0 && (
             <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/8 px-3.5 py-2">
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/8 px-3.5 py-2">
                 <Server className="h-3.5 w-3.5 text-red-400" />
                 <span className="text-[13px] font-bold text-red-400 tabular-nums">{subCount}</span>
                 <span className="text-[11px] text-red-600 font-medium">Subdomains</span>
@@ -131,10 +131,10 @@ export default function AssetsPage() {
                 <span className="text-[13px] font-bold text-blue-400 tabular-nums">{urlCount}</span>
                 <span className="text-[11px] text-blue-600 font-medium">Live URLs</span>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3.5 py-2">
-                <Filter className="h-3.5 w-3.5 text-zinc-500" />
-                <span className="text-[13px] font-bold text-zinc-300 tabular-nums">{clients}</span>
-                <span className="text-[11px] text-zinc-600 font-medium">Clients</span>
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3.5 py-2">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[13px] font-bold text-foreground/90 tabular-nums">{clients}</span>
+                <span className="text-[11px] text-muted-foreground/70 font-medium">Clients</span>
               </div>
             </div>
           )}
@@ -143,12 +143,12 @@ export default function AssetsPage() {
           {assets.length > 0 && (
             <div className="flex flex-wrap gap-3 items-center">
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search assets or clients…"
-                  className="w-full rounded-lg border border-white/[0.07] bg-[#160025]/60 pl-9 pr-4 py-2.5 text-[13px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
+                  className="w-full rounded-lg border border-border bg-card/90 pl-9 pr-4 py-2.5 text-[13px] text-foreground/90 placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40 transition-all"
                 />
               </div>
               <div className="flex gap-1.5">
@@ -158,8 +158,8 @@ export default function AssetsPage() {
                     onClick={() => setTypeFilter(t)}
                     className={`rounded-md border px-3 py-2 text-[11px] font-bold transition-all ${
                       typeFilter === t
-                        ? "bg-zinc-700/40 border-white/[0.12] text-zinc-200"
-                        : "border-white/[0.06] text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.03]"
+                        ? "bg-zinc-700/40 border-white/[0.12] text-foreground"
+                        : "border-border text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/40"
                     }`}
                   >
                     {t === "all" ? "All" : t.charAt(0).toUpperCase() + t.slice(1) + "s"}
@@ -171,39 +171,39 @@ export default function AssetsPage() {
 
           {/* Table */}
           {fetching ? (
-            <div className="flex items-center gap-3 text-zinc-600 text-sm py-12 justify-center">
+            <div className="flex items-center gap-3 text-muted-foreground/70 text-sm py-12 justify-center">
               <Loader2 className="h-4 w-4 animate-spin" />Loading assets…
             </div>
           ) : assets.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex flex-col items-center justify-center gap-4 py-20">
-              <Database className="h-10 w-10 text-zinc-700" />
+            <div className="rounded-xl border border-border bg-card flex flex-col items-center justify-center gap-4 py-20">
+              <Database className="h-10 w-10 text-muted-foreground/50" />
               <div className="text-center space-y-1">
                 <p className="font-semibold text-white">No assets yet</p>
-                <p className="text-sm text-zinc-500">Run scans to discover and track your attack surface assets.</p>
+                <p className="text-sm text-muted-foreground">Run scans to discover and track your attack surface assets.</p>
               </div>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex items-center justify-center py-12 text-zinc-600 text-sm">
+            <div className="rounded-xl border border-border bg-card flex items-center justify-center py-12 text-muted-foreground/70 text-sm">
               No assets match your filter.
             </div>
           ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
+            <div className="rounded-xl border border-border bg-card/90 overflow-hidden">
               {/* Column headers */}
-              <div className="hidden sm:grid sm:grid-cols-[2fr_90px_130px_100px_100px] gap-0 px-5 py-2.5 border-b border-white/[0.05] bg-white/[0.015]">
+              <div className="hidden sm:grid sm:grid-cols-[2fr_90px_130px_100px_100px] gap-0 px-5 py-2.5 border-b border-border bg-muted/30">
                 {["Asset", "Type", "Client", "First Seen", "Last Seen"].map(h => (
-                  <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
+                  <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{h}</p>
                 ))}
               </div>
 
-              <div className="divide-y divide-white/[0.03]">
+              <div className="divide-y divide-border">
                 {filtered.map((a, i) => {
                   const style = TYPE_STYLE[a.type] ?? DEFAULT_STYLE;
                   return (
-                    <div key={i} className="hidden sm:grid sm:grid-cols-[2fr_90px_130px_100px_100px] gap-0 px-5 py-3 items-center hover:bg-white/[0.015] group transition-colors">
+                    <div key={i} className="hidden sm:grid sm:grid-cols-[2fr_90px_130px_100px_100px] gap-0 px-5 py-3 items-center hover:bg-muted/30 group transition-colors">
                       {/* Asset */}
                       <div className="flex items-center gap-2 min-w-0 pr-3">
                         <span className={`shrink-0 ${style.text}`}>{style.icon}</span>
-                        <span className="text-[12px] font-mono text-zinc-300 truncate group-hover:text-white transition-colors">{a.asset}</span>
+                        <span className="text-[12px] font-mono text-foreground/90 truncate group-hover:text-white transition-colors">{a.asset}</span>
                       </div>
                       {/* Type badge */}
                       <div>
@@ -213,15 +213,15 @@ export default function AssetsPage() {
                       </div>
                       {/* Client */}
                       <div className="min-w-0 pr-2">
-                        <span className="text-[11px] text-zinc-600 truncate block">{a.client}</span>
+                        <span className="text-[11px] text-muted-foreground/70 truncate block">{a.client}</span>
                       </div>
                       {/* First seen */}
                       <div>
-                        <span className="text-[11px] text-zinc-700 font-mono">{timeAgo(a.first_seen)}</span>
+                        <span className="text-[11px] text-muted-foreground/50 font-mono">{timeAgo(a.first_seen)}</span>
                       </div>
                       {/* Last seen */}
                       <div>
-                        <span className="text-[11px] text-zinc-500 font-mono">{timeAgo(a.last_seen)}</span>
+                        <span className="text-[11px] text-muted-foreground font-mono">{timeAgo(a.last_seen)}</span>
                       </div>
                     </div>
                   );
@@ -235,8 +235,8 @@ export default function AssetsPage() {
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`shrink-0 ${style.text}`}>{style.icon}</span>
                         <div className="min-w-0">
-                          <p className="text-[12px] font-mono text-zinc-300 truncate">{a.asset}</p>
-                          <p className="text-[10px] text-zinc-600">{a.client} · {timeAgo(a.last_seen)}</p>
+                          <p className="text-[12px] font-mono text-foreground/90 truncate">{a.asset}</p>
+                          <p className="text-[10px] text-muted-foreground/70">{a.client} · {timeAgo(a.last_seen)}</p>
                         </div>
                       </div>
                       <span className={`shrink-0 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-bold ${style.bg} ${style.text} ${style.border}`}>
@@ -248,7 +248,7 @@ export default function AssetsPage() {
               </div>
 
               <div className="px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.01]">
-                <span className="text-[10px] text-zinc-700">
+                <span className="text-[10px] text-muted-foreground/50">
                   Showing {filtered.length} of {assets.length} assets
                 </span>
               </div>

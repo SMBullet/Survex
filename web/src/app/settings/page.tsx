@@ -21,26 +21,26 @@ function InputField({
 
   return (
     <div className="space-y-1.5">
-      <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-600">{label}</label>
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">{label}</label>
       <div className="relative">
         <input
           type={isPassword && !show ? "password" : "text"}
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 text-[13px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 focus:ring-1 focus:ring-red-500/20 transition-all font-mono"
+          className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all font-mono"
         />
         {isPassword && (
           <button
             type="button"
             onClick={() => setShow(s => !s)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
           >
             {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           </button>
         )}
       </div>
-      {hint && <p className="text-[10px] text-zinc-700">{hint}</p>}
+      {hint && <p className="text-[10px] text-muted-foreground/50">{hint}</p>}
     </div>
   );
 }
@@ -162,39 +162,39 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#0d0018] bg-dots">
+      <main className="min-h-screen bg-background bg-dots">
         <div className="mx-auto max-w-3xl px-6 py-8 space-y-6">
 
           {/* Header */}
-          <div className="flex items-center gap-2 text-xs text-zinc-600">
-            <span className="hover:text-zinc-400 cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+            <span className="hover:text-muted-foreground cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-zinc-400">Settings</span>
+            <span className="text-muted-foreground">Settings</span>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#160025]">
-              <Settings className="h-5 w-5 text-zinc-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
+              <Settings className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Settings</h1>
-              <p className="text-[12px] text-zinc-600">Global API keys and integrations — auto-injected into every scan.</p>
+              <p className="text-[12px] text-muted-foreground/70">Global API keys and integrations — auto-injected into every scan.</p>
             </div>
           </div>
 
           {fetching ? (
-            <div className="flex items-center gap-3 text-zinc-600 text-sm py-12 justify-center">
+            <div className="flex items-center gap-3 text-muted-foreground/70 text-sm py-12 justify-center">
               <Loader2 className="h-4 w-4 animate-spin" />Loading…
             </div>
           ) : (
             <div className="space-y-5">
 
               {/* API Keys section */}
-              <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
-                  <Key className="h-4 w-4 text-zinc-500" />
+              <div className="rounded-xl border border-border bg-card/90 overflow-hidden">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
+                  <Key className="h-4 w-4 text-muted-foreground" />
                   <span className="text-[13px] font-semibold text-white">API Keys</span>
-                  <span className="ml-auto text-[10px] text-zinc-700">Stored securely per account · auto-used in scans</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50">Stored securely per account · auto-used in scans</span>
                 </div>
                 <div className="p-5 space-y-5">
                   <InputField
@@ -217,14 +217,14 @@ export default function SettingsPage() {
               </div>
 
               {/* Webhooks section */}
-              <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
-                  <Webhook className="h-4 w-4 text-zinc-500" />
+              <div className="rounded-xl border border-border bg-card/90 overflow-hidden">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
+                  <Webhook className="h-4 w-4 text-muted-foreground" />
                   <span className="text-[13px] font-semibold text-white">Webhooks</span>
-                  <span className="ml-1 text-[10px] text-zinc-700">Slack · Discord · custom</span>
+                  <span className="ml-1 text-[10px] text-muted-foreground/50">Slack · Discord · custom</span>
                   <button
                     onClick={addWebhook}
-                    className="ml-auto flex items-center gap-1.5 rounded-md border border-white/[0.07] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+                    className="ml-auto flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all"
                   >
                     <Plus className="h-3 w-3" />
                     Add Webhook
@@ -233,26 +233,26 @@ export default function SettingsPage() {
 
                 <div className="p-5 space-y-3">
                   {settings.webhook_urls.length === 0 ? (
-                    <p className="text-[12px] text-zinc-700 text-center py-4">
+                    <p className="text-[12px] text-muted-foreground/50 text-center py-4">
                       No webhooks configured. Add a Slack or Discord incoming webhook URL to receive scan alerts.
                     </p>
                   ) : (
                     settings.webhook_urls.map((wh, i) => (
-                      <div key={i} className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-[#0a0014]/60 p-3.5">
+                      <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-secondary/80 p-3.5">
                         <div className="flex-1 grid gap-2 sm:grid-cols-[160px_1fr]">
                           <input
                             type="text"
                             value={wh.name}
                             onChange={e => updateWebhook(i, "name", e.target.value)}
                             placeholder="Label (e.g. Slack #alerts)"
-                            className="rounded-md border border-white/[0.07] bg-[#160025] px-3 py-2 text-[12px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
+                            className="rounded-md border border-border bg-card px-3 py-2 text-[12px] text-foreground/90 placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40 transition-all"
                           />
                           <input
                             type="url"
                             value={wh.url}
                             onChange={e => updateWebhook(i, "url", e.target.value)}
                             placeholder="https://hooks.slack.com/services/…"
-                            className="rounded-md border border-white/[0.07] bg-[#160025] px-3 py-2 text-[12px] font-mono text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
+                            className="rounded-md border border-border bg-card px-3 py-2 text-[12px] font-mono text-foreground/90 placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40 transition-all"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
@@ -261,15 +261,15 @@ export default function SettingsPage() {
                             onClick={() => testWebhook(i)}
                             disabled={!wh.url || testingIdx === i}
                             title="Send test payload"
-                            className="flex h-8 w-8 items-center justify-center rounded-md border border-white/[0.07] text-zinc-600 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/8 disabled:opacity-30 transition-all"
+                            className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground/70 hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/8 disabled:opacity-30 transition-all"
                           >
                             {testingIdx === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                           </button>
-                          {testResult[i] === "ok"   && <CheckCircle2 className="h-4 w-4 text-red-400 shrink-0" />}
-                          {testResult[i] === "fail" && <AlertCircle  className="h-4 w-4 text-red-400 shrink-0" />}
+                          {testResult[i] === "ok"   && <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />}
+                          {testResult[i] === "fail" && <AlertCircle  className="h-4 w-4 text-destructive shrink-0" />}
                           <button
                             onClick={() => removeWebhook(i)}
-                            className="flex h-8 w-8 items-center justify-center rounded-md border border-white/[0.07] text-zinc-600 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/8 transition-all"
+                            className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground/70 hover:text-red-400 hover:border-red-500/30 hover:bg-destructive/8 transition-all"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -281,17 +281,17 @@ export default function SettingsPage() {
               </div>
 
               {/* AI Assistant section */}
-              <div className="rounded-xl border border-violet-500/20 bg-[#160025]/60 overflow-hidden">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
+              <div className="rounded-xl border border-violet-500/20 bg-card/90 overflow-hidden">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
                   <Brain className="h-4 w-4 text-violet-400" />
                   <span className="text-[13px] font-semibold text-white">AI Assistant</span>
-                  <span className="ml-auto text-[10px] text-zinc-700">Powers: finding explanations · scan config · executive summaries</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50">Powers: finding explanations · scan config · executive summaries</span>
                 </div>
                 <div className="p-5 space-y-5">
 
                   {/* Provider grid */}
                   <div className="space-y-2">
-                    <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-600">Provider</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Provider</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {AI_PROVIDERS.map(p => {
                         const active = settings.ai_provider === p.id;
@@ -303,7 +303,7 @@ export default function SettingsPage() {
                             className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
                               active
                                 ? "border-violet-500/50 bg-violet-500/12 text-violet-300"
-                                : "border-white/[0.07] bg-white/[0.02] text-zinc-500 hover:border-white/15 hover:text-zinc-300"
+                                : "border-border bg-muted/20 text-muted-foreground hover:border-white/15 hover:text-foreground/90"
                             }`}
                           >
                             <span className="text-[13px] font-semibold">{p.label}</span>
@@ -330,7 +330,7 @@ export default function SettingsPage() {
                       {settings.ai_provider === "pollinations" && (
                         <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3">
                           <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-600">No API Key Required</span>
-                          <span className="text-[12px] text-zinc-500">Powered by Pollinations.AI — free, public, no registration. Models: openai (GPT-4o-mini equiv), mistral, llama, openai-large.</span>
+                          <span className="text-[12px] text-muted-foreground">Powered by Pollinations.AI — free, public, no registration. Models: openai (GPT-4o-mini equiv), mistral, llama, openai-large.</span>
                         </div>
                       )}
 
@@ -375,14 +375,14 @@ export default function SettingsPage() {
                         {testingAI ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                         Test Connection
                       </button>
-                      {aiTestResult === "ok"   && <span className="flex items-center gap-1.5 text-[12px] text-red-400"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>}
-                      {aiTestResult === "fail" && <span className="flex items-center gap-1.5 text-[12px] text-red-400"><AlertCircle className="h-3.5 w-3.5" />Connection failed — check your key and save first</span>}
-                      <span className="ml-auto text-[10px] text-zinc-700">Save settings first, then test</span>
+                      {aiTestResult === "ok"   && <span className="flex items-center gap-1.5 text-[12px] text-green-600 dark:text-green-400"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>}
+                      {aiTestResult === "fail" && <span className="flex items-center gap-1.5 text-[12px] text-destructive"><AlertCircle className="h-3.5 w-3.5" />Connection failed — check your key and save first</span>}
+                      <span className="ml-auto text-[10px] text-muted-foreground/50">Save settings first, then test</span>
                     </div>
                   )}
 
                   {!settings.ai_provider && (
-                    <p className="text-[12px] text-zinc-700 text-center py-2">
+                    <p className="text-[12px] text-muted-foreground/50 text-center py-2">
                       Select a provider above to configure AI features. The AI assistant can explain findings, suggest scan configurations, and write executive summaries.
                     </p>
                   )}
@@ -390,7 +390,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Save bar */}
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#160025]/60 px-5 py-3.5">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/90 px-5 py-3.5">
                 {error && (
                   <div className="flex items-center gap-2 text-[12px] text-red-400">
                     <AlertCircle className="h-4 w-4 shrink-0" />
@@ -407,7 +407,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors"
+                  className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                   {saving ? "Saving…" : "Save Settings"}

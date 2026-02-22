@@ -42,11 +42,11 @@ const DEFAULT_NUCLEI_CATEGORIES = new Set(
 );
 
 const NUCLEI_SEVERITIES = [
-  { value: "critical", color: "text-red-400    border-red-500/30    bg-red-500/8"    },
+  { value: "critical", color: "text-red-400    border-primary/30    bg-primary/8"    },
   { value: "high",     color: "text-orange-400 border-orange-500/30 bg-orange-500/8" },
   { value: "medium",   color: "text-yellow-400 border-yellow-500/30 bg-yellow-500/8" },
   { value: "low",      color: "text-blue-400   border-blue-500/30   bg-blue-500/8"   },
-  { value: "info",     color: "text-zinc-400   border-zinc-500/30   bg-zinc-700/20"  },
+  { value: "info",     color: "text-muted-foreground   border-zinc-500/30   bg-zinc-700/20"  },
 ];
 const DEFAULT_NUCLEI_SEVERITIES = new Set(["critical", "high", "medium", "info"]);
 
@@ -92,7 +92,7 @@ const MODULE_GROUPS = [
   {
     label: "Active Scanning",
     color: "text-red-400",
-    border: "border-red-500/20",
+    border: "border-primary/20",
     bg: "bg-red-500/5",
     icon: <Zap className="h-3.5 w-3.5" />,
     modules: [
@@ -140,8 +140,8 @@ const PROFILES = [
     desc: "No active probing",
     modules: ["crts","dns","shodan"],
     color: "border-zinc-600/30 bg-zinc-700/10",
-    active: "border-zinc-500 bg-zinc-500/15 text-zinc-300",
-    iconColor: "text-zinc-400",
+    active: "border-zinc-500 bg-zinc-500/15 text-foreground/90",
+    iconColor: "text-muted-foreground",
   },
   {
     value: "cloud",   label: "Cloud",   icon: <Cloud className="h-4 w-4" />,
@@ -289,42 +289,42 @@ export default function NewScanPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#0d0018] bg-dots">
+      <main className="min-h-screen bg-background bg-dots">
         <div className="mx-auto max-w-5xl px-6 py-8">
 
           {/* Header */}
           <div className="mb-8 space-y-1">
-            <div className="flex items-center gap-2 text-xs text-zinc-600 mb-3">
-              <span className="hover:text-zinc-400 cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/70 mb-3">
+              <span className="hover:text-muted-foreground cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
               <ChevronRight className="h-3 w-3" />
-              <span className="text-zinc-400">New Scan</span>
+              <span className="text-muted-foreground">New Scan</span>
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Target Acquisition</h1>
-            <p className="text-sm text-zinc-500">Configure scan scope, profile, and modules.</p>
+            <p className="text-sm text-muted-foreground">Configure scan scope, profile, and modules.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
             {/* ── Target ────────────────────────────────────────────────── */}
-            <section className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
-              <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+            <section className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                 <Globe className="h-4 w-4 text-red-400" />
                 <span className="text-[13px] font-semibold text-white">Target Scope</span>
               </div>
               <div className="p-5 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">
-                    Client Name <span className="text-zinc-700 font-normal normal-case tracking-normal">(optional)</span>
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                    Client Name <span className="text-muted-foreground/50 font-normal normal-case tracking-normal">(optional)</span>
                   </Label>
                   <Input
                     placeholder="acme-corp"
                     value={client}
                     onChange={e => setClient(e.target.value)}
-                    className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-700 focus:border-red-500/50 h-9"
+                    className="bg-muted/50 border-border text-white placeholder:text-muted-foreground/50 focus:border-red-500/50 h-9"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
                     Targets <span className="text-red-500">*</span>
                   </Label>
                   <Textarea
@@ -332,36 +332,36 @@ export default function NewScanPage() {
                     rows={4}
                     value={targetsText}
                     onChange={e => setTargets(e.target.value)}
-                    className="font-mono text-sm resize-none bg-white/[0.04] border-white/[0.08] text-amber-300 placeholder:text-zinc-700 focus:border-red-500/50"
+                    className="font-mono text-sm resize-none bg-muted/50 border-border text-amber-300 placeholder:text-muted-foreground/50 focus:border-red-500/50"
                     required
                   />
-                  <p className="text-[11px] text-zinc-600">Domains, IPs, or CIDR ranges — one per line or comma-separated.</p>
+                  <p className="text-[11px] text-muted-foreground/70">Domains, IPs, or CIDR ranges — one per line or comma-separated.</p>
                 </div>
               </div>
             </section>
 
             {/* ── AI Assist ─────────────────────────────────────────────── */}
-            <section className="rounded-xl border border-violet-500/20 bg-[#160025]/70 overflow-hidden">
+            <section className="rounded-xl border border-violet-500/20 bg-card overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowAI(s => !s)}
-                className="w-full flex items-center gap-2.5 border-b border-violet-500/10 bg-white/[0.01] px-5 py-3 text-left hover:bg-white/[0.02] transition-colors"
+                className="w-full flex items-center gap-2.5 border-b border-violet-500/10 bg-white/[0.01] px-5 py-3 text-left hover:bg-muted/20 transition-colors"
               >
                 <Brain className="h-4 w-4 text-violet-400" />
                 <span className="text-[13px] font-semibold text-white">AI Assist</span>
-                <span className="ml-1 text-[11px] text-zinc-600">Describe your target and let AI suggest a profile</span>
-                <ChevronDown className={`ml-auto h-4 w-4 text-zinc-600 transition-transform ${showAI ? "rotate-180" : ""}`} />
+                <span className="ml-1 text-[11px] text-muted-foreground/70">Describe your target and let AI suggest a profile</span>
+                <ChevronDown className={`ml-auto h-4 w-4 text-muted-foreground/70 transition-transform ${showAI ? "rotate-180" : ""}`} />
               </button>
               {showAI && (
                 <div className="p-5 space-y-4">
                   <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-600">Describe your target</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Describe your target</label>
                     <textarea
                       rows={3}
                       placeholder={"e.g. \"External web app for a fintech company — need full web + vuln scan, avoid noisy tools\"\n\"Quick passive recon on a large enterprise domain with many subdomains\""}
                       value={aiDescription}
                       onChange={e => setAIDesc(e.target.value)}
-                      className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-violet-500/40 resize-none transition-all"
+                      className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-violet-500/40 resize-none transition-all"
                     />
                   </div>
                   <div className="flex items-center gap-3">
@@ -383,17 +383,17 @@ export default function NewScanPage() {
                       <span>⚠</span>{aiError}
                     </p>
                   )}
-                  <p className="text-[10px] text-zinc-700">AI will suggest a scan profile and auto-select it. Requires AI provider configured in Settings.</p>
+                  <p className="text-[10px] text-muted-foreground/50">AI will suggest a scan profile and auto-select it. Requires AI provider configured in Settings.</p>
                 </div>
               )}
             </section>
 
             {/* ── Profile selector ──────────────────────────────────────── */}
-            <section className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
-              <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+            <section className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                 <Activity className="h-4 w-4 text-red-400" />
                 <span className="text-[13px] font-semibold text-white">Scan Profile</span>
-                <span className="ml-auto text-[11px] text-zinc-600">{activeModuleCount} module{activeModuleCount !== 1 ? "s" : ""}</span>
+                <span className="ml-auto text-[11px] text-muted-foreground/70">{activeModuleCount} module{activeModuleCount !== 1 ? "s" : ""}</span>
               </div>
               <div className="p-5">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -405,20 +405,20 @@ export default function NewScanPage() {
                         type="button"
                         onClick={() => setProfile(p.value)}
                         className={`relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-all ${
-                          isActive ? p.active : "border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/15"
+                          isActive ? p.active : "border-border bg-muted/20 hover:bg-muted/50 hover:border-white/15"
                         }`}
                       >
                         <div className={`flex h-7 w-7 items-center justify-center rounded-lg border ${
-                          isActive ? "border-current/30 bg-current/10" : "border-white/[0.07] bg-white/5"
+                          isActive ? "border-current/30 bg-current/10" : "border-border bg-muted/50"
                         }`}>
-                          <span className={isActive ? "text-inherit" : "text-zinc-600"}>{p.icon}</span>
+                          <span className={isActive ? "text-inherit" : "text-muted-foreground/70"}>{p.icon}</span>
                         </div>
                         <div>
-                          <p className={`text-[13px] font-semibold ${isActive ? "" : "text-zinc-300"}`}>{p.label}</p>
-                          <p className="text-[10px] text-zinc-600 mt-0.5 leading-snug">{p.desc}</p>
+                          <p className={`text-[13px] font-semibold ${isActive ? "" : "text-foreground/90"}`}>{p.label}</p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-0.5 leading-snug">{p.desc}</p>
                         </div>
                         {p.modules.length > 0 && (
-                          <span className="absolute top-2 right-2 text-[9px] text-zinc-600 font-mono">{p.modules.length}</span>
+                          <span className="absolute top-2 right-2 text-[9px] text-muted-foreground/70 font-mono">{p.modules.length}</span>
                         )}
                         {isActive && (
                           <span className="absolute bottom-2 right-2">
@@ -434,7 +434,7 @@ export default function NewScanPage() {
                 {profile !== "custom" && currentProfile.modules.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {currentProfile.modules.map(m => (
-                      <span key={m} className="rounded border border-white/[0.07] bg-white/[0.03] px-2 py-0.5 text-[11px] font-mono text-zinc-500">
+                      <span key={m} className="rounded border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                         {m}
                       </span>
                     ))}
@@ -445,8 +445,8 @@ export default function NewScanPage() {
 
             {/* ── Custom module picker ───────────────────────────────────── */}
             {profile === "custom" && (
-              <section className="rounded-xl border border-amber-500/15 bg-[#160025]/70 overflow-hidden">
-                <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+              <section className="rounded-xl border border-amber-500/15 bg-card overflow-hidden">
+                <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                   <Shield className="h-4 w-4 text-amber-400" />
                   <span className="text-[13px] font-semibold text-white">Module Selection</span>
                   <span className="ml-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
@@ -454,11 +454,11 @@ export default function NewScanPage() {
                   </span>
                   <div className="ml-auto flex gap-1.5">
                     <button type="button" onClick={() => setSelected(new Set(ALL_IDS))}
-                      className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+                      className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-white hover:bg-muted/50 transition-colors">
                       All
                     </button>
                     <button type="button" onClick={() => setSelected(new Set())}
-                      className="rounded px-2 py-1 text-[11px] text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-colors">
+                      className="rounded px-2 py-1 text-[11px] text-muted-foreground/70 hover:text-foreground/90 hover:bg-muted/50 transition-colors">
                       Clear
                     </button>
                   </div>
@@ -479,12 +479,12 @@ export default function NewScanPage() {
                               onClick={() => toggle(m.id)}
                               className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                                 on
-                                  ? "border-red-500/40 bg-red-500/6 text-white"
-                                  : "border-white/[0.06] hover:border-white/15 text-zinc-500 hover:text-zinc-300"
+                                  ? "border-primary/40 bg-red-500/6 text-white"
+                                  : "border-border hover:border-white/15 text-muted-foreground hover:text-foreground/90"
                               }`}
                             >
                               <div className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all ${
-                                on ? "bg-red-500 border-red-500" : "border-white/20 bg-white/5"
+                                on ? "bg-red-500 border-red-500" : "border-white/20 bg-muted/50"
                               }`}>
                                 {on && <Check className="h-2.5 w-2.5 text-white" />}
                               </div>
@@ -492,12 +492,12 @@ export default function NewScanPage() {
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <span className="text-[13px] font-medium">{m.label}</span>
                                   {m.builtin && (
-                                    <span className="text-[9px] bg-zinc-700/50 text-zinc-500 rounded px-1.5 py-0.5 font-bold uppercase tracking-wider">
+                                    <span className="text-[9px] bg-zinc-700/50 text-muted-foreground rounded px-1.5 py-0.5 font-bold uppercase tracking-wider">
                                       built-in
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-zinc-600 mt-0.5">{m.desc}</p>
+                                <p className="text-[11px] text-muted-foreground/70 mt-0.5">{m.desc}</p>
                               </div>
                             </label>
                           );
@@ -510,8 +510,8 @@ export default function NewScanPage() {
             )}
 
             {/* ── Options ───────────────────────────────────────────────── */}
-            <section className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
-              <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+            <section className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                 <Server className="h-4 w-4 text-red-400" />
                 <span className="text-[13px] font-semibold text-white">Scan Options</span>
               </div>
@@ -519,7 +519,7 @@ export default function NewScanPage() {
 
                 {/* Port profile */}
                 <div className="space-y-2">
-                  <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Port Profile</Label>
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Port Profile</Label>
                   <div className="flex flex-wrap gap-2">
                     {PORT_OPTIONS.map(p => (
                       <button
@@ -528,8 +528,8 @@ export default function NewScanPage() {
                         onClick={() => setPorts(p.value)}
                         className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] transition-all ${
                           ports === p.value
-                            ? "border-red-500/40 bg-red-500/10 text-red-300"
-                            : "border-white/[0.07] bg-white/[0.02] text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                            ? "border-primary/40 bg-red-500/10 text-red-300"
+                            : "border-border bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
                         <span className="font-medium">{p.label}</span>
@@ -542,19 +542,19 @@ export default function NewScanPage() {
                 {/* Rate + threads */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div className="space-y-2">
-                    <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Rate (req/s)</Label>
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Rate (req/s)</Label>
                     <Input
                       type="number" min={1} max={500}
                       value={rate} onChange={e => setRate(Number(e.target.value))}
-                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-red-500/50"
+                      className="bg-muted/50 border-border text-white h-9 font-mono focus:border-red-500/50"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Threads</Label>
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Threads</Label>
                     <Input
                       type="number" min={1} max={200}
                       value={threads} onChange={e => setThreads(Number(e.target.value))}
-                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-red-500/50"
+                      className="bg-muted/50 border-border text-white h-9 font-mono focus:border-red-500/50"
                     />
                   </div>
                 </div>
@@ -572,14 +572,14 @@ export default function NewScanPage() {
                       <div
                         onClick={() => opt.set(!opt.val)}
                         className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all cursor-pointer ${
-                          opt.val ? "bg-red-500 border-red-500" : "border-white/20 bg-white/5 group-hover:border-white/40"
+                          opt.val ? "bg-red-500 border-red-500" : "border-white/20 bg-muted/50 group-hover:border-white/40"
                         }`}
                       >
                         {opt.val && <Check className="h-2.5 w-2.5 text-white" />}
                       </div>
                       <div>
-                        <p className="text-[13px] font-medium text-zinc-300">{opt.label}</p>
-                        <p className="text-[11px] text-zinc-600">{opt.sub}</p>
+                        <p className="text-[13px] font-medium text-foreground/90">{opt.label}</p>
+                        <p className="text-[11px] text-muted-foreground/70">{opt.sub}</p>
                       </div>
                     </label>
                   ))}
@@ -589,11 +589,11 @@ export default function NewScanPage() {
 
             {/* ── Nuclei Configuration ──────────────────────────────────── */}
             {nucleiActive && (
-              <section className="rounded-xl border border-red-500/15 bg-[#160025]/70 overflow-hidden">
-                <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+              <section className="rounded-xl border border-red-500/15 bg-card overflow-hidden">
+                <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                   <Target className="h-4 w-4 text-red-400" />
                   <span className="text-[13px] font-semibold text-white">Nuclei Configuration</span>
-                  <span className="ml-2 text-[11px] text-zinc-600">
+                  <span className="ml-2 text-[11px] text-muted-foreground/70">
                     {nucleiCategories.size} template categor{nucleiCategories.size === 1 ? "y" : "ies"} · {nucleiSeverities.size} severit{nucleiSeverities.size === 1 ? "y" : "ies"}
                   </span>
                 </div>
@@ -601,7 +601,7 @@ export default function NewScanPage() {
 
                   {/* Severity */}
                   <div className="space-y-2">
-                    <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Severity Levels</Label>
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Severity Levels</Label>
                     <div className="flex flex-wrap gap-2">
                       {NUCLEI_SEVERITIES.map(s => {
                         const on = nucleiSeverities.has(s.value);
@@ -613,7 +613,7 @@ export default function NewScanPage() {
                             className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium capitalize transition-all ${
                               on
                                 ? s.color
-                                : "border-white/[0.07] bg-white/[0.02] text-zinc-600 hover:text-zinc-400 hover:bg-white/5"
+                                : "border-border bg-muted/20 text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/50"
                             }`}
                           >
                             <div className={`h-1.5 w-1.5 rounded-full ${on ? "bg-current" : "bg-zinc-700"}`} />
@@ -627,18 +627,18 @@ export default function NewScanPage() {
                   {/* Template categories */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Template Categories</Label>
+                      <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Template Categories</Label>
                       <div className="flex gap-1.5">
                         <button type="button" onClick={() => setNucleiCategories(new Set(NUCLEI_CATEGORIES.map(c => c.path)))}
-                          className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+                          className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-white hover:bg-muted/50 transition-colors">
                           All
                         </button>
                         <button type="button" onClick={() => setNucleiCategories(DEFAULT_NUCLEI_CATEGORIES)}
-                          className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+                          className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-white hover:bg-muted/50 transition-colors">
                           Default
                         </button>
                         <button type="button" onClick={() => setNucleiCategories(new Set())}
-                          className="rounded px-2 py-1 text-[11px] text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-colors">
+                          className="rounded px-2 py-1 text-[11px] text-muted-foreground/70 hover:text-foreground/90 hover:bg-muted/50 transition-colors">
                           None
                         </button>
                       </div>
@@ -652,18 +652,18 @@ export default function NewScanPage() {
                             onClick={() => toggleCategory(cat.path)}
                             className={`flex items-start gap-3 rounded-lg border p-2.5 cursor-pointer transition-all ${
                               on
-                                ? "border-red-500/30 bg-red-500/5 text-white"
-                                : "border-white/[0.06] hover:border-white/15 text-zinc-500 hover:text-zinc-300"
+                                ? "border-primary/30 bg-red-500/5 text-white"
+                                : "border-border hover:border-white/15 text-muted-foreground hover:text-foreground/90"
                             }`}
                           >
                             <div className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded border flex items-center justify-center transition-all ${
-                              on ? "bg-red-500 border-red-500" : "border-white/20 bg-white/5"
+                              on ? "bg-red-500 border-red-500" : "border-white/20 bg-muted/50"
                             }`}>
                               {on && <Check className="h-2 w-2 text-white" />}
                             </div>
                             <div className="min-w-0">
                               <p className="text-[12px] font-medium">{cat.label}</p>
-                              <p className="text-[10px] text-zinc-600 mt-0.5 leading-snug">{cat.desc}</p>
+                              <p className="text-[10px] text-muted-foreground/70 mt-0.5 leading-snug">{cat.desc}</p>
                             </div>
                           </label>
                         );
@@ -677,7 +677,7 @@ export default function NewScanPage() {
 
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2.5 rounded-lg border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-400">
+              <div className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-primary/8 px-4 py-3 text-sm text-red-400">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -688,7 +688,7 @@ export default function NewScanPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-white transition-all"
+                className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-white transition-all"
               >
                 {submitting ? (
                   <>
@@ -705,7 +705,7 @@ export default function NewScanPage() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard")}
-                className="rounded-lg border border-white/[0.07] px-5 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-all"
+                className="rounded-lg border border-border px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
               >
                 Cancel
               </button>
