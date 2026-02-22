@@ -75,7 +75,7 @@ export const api = {
       request<{ status: string }>(`/api/v1/scans/${id}`, {
         method: "DELETE",
       }),
-    reportUrl: (id: string) => `${BASE}/api/v1/scans/${id}/report`,
+    reportUrl: (id: string) => `${BASE}/api/v1/scans/${id}/report?token=${token()}`,
     logsWsUrl: (id: string) => {
       const t = token();
       const base = BASE.replace(/^http/, "ws");

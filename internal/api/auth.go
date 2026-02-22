@@ -60,12 +60,17 @@ func parseToken(tokenStr string) (*claims, error) {
 }
 
 // jwtMiddleware extracts and validates the Bearer token, storing claims in c.Locals("user").
+// It accepts the token from the Authorization header OR a ?token= query param so that
+// browser navigation (e.g. opening the report in a new tab) works without custom headers.
 func jwtMiddleware(c *fiber.Ctx) error {
-	auth := c.Get("Authorization")
-	if !strings.HasPrefix(auth, "Bearer ") {
+	tokenStr := strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
+	if tokenStr == "" {
+		tokenStr = c.Query("token")
+	}
+	if tokenStr == "" {
 		return fiber.ErrUnauthorized
 	}
-	cl, err := parseToken(strings.TrimPrefix(auth, "Bearer "))
+	cl, err := parseToken(tokenStr)
 	if err != nil {
 		return fiber.ErrUnauthorized
 	}

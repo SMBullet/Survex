@@ -85,11 +85,9 @@ export default function ScanDetailPage() {
 
   useEffect(() => {
     if (!user) return;
-    fetchScan().then((s) => {
-      if (s && (s.status === "queued" || s.status === "running")) {
-        connectWs();
-      }
-    });
+    // Always connect WebSocket — the server sends historical lines for finished jobs
+    // then closes the connection, so logs show even after the scan completes.
+    fetchScan().then(() => connectWs());
   }, [user, fetchScan, connectWs]);
 
   // Poll when running for status updates (WebSocket gives logs, not metadata)
