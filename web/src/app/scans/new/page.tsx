@@ -299,7 +299,7 @@ export default function NewScanPage() {
               <ChevronRight className="h-3 w-3" />
               <span className="text-muted-foreground">New Scan</span>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Target Acquisition</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Target Acquisition</h1>
             <p className="text-sm text-muted-foreground">Configure scan scope, profile, and modules.</p>
           </div>
 
@@ -309,7 +309,7 @@ export default function NewScanPage() {
             <section className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                 <Globe className="h-4 w-4 text-red-400" />
-                <span className="text-[13px] font-semibold text-white">Target Scope</span>
+                <span className="text-[13px] font-semibold text-foreground">Target Scope</span>
               </div>
               <div className="p-5 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -320,7 +320,7 @@ export default function NewScanPage() {
                     placeholder="acme-corp"
                     value={client}
                     onChange={e => setClient(e.target.value)}
-                    className="bg-muted/50 border-border text-white placeholder:text-muted-foreground/50 focus:border-red-500/50 h-9"
+                    className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground/50 focus:border-red-500/50 h-9"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
@@ -345,10 +345,10 @@ export default function NewScanPage() {
               <button
                 type="button"
                 onClick={() => setShowAI(s => !s)}
-                className="w-full flex items-center gap-2.5 border-b border-violet-500/10 bg-white/[0.01] px-5 py-3 text-left hover:bg-muted/20 transition-colors"
+                className="w-full flex items-center gap-2.5 border-b border-violet-500/10 bg-muted/10 px-5 py-3 text-left hover:bg-muted/20 transition-colors"
               >
                 <Brain className="h-4 w-4 text-violet-400" />
-                <span className="text-[13px] font-semibold text-white">AI Assist</span>
+                <span className="text-[13px] font-semibold text-foreground">AI Assist</span>
                 <span className="ml-1 text-[11px] text-muted-foreground/70">Describe your target and let AI suggest a profile</span>
                 <ChevronDown className={`ml-auto h-4 w-4 text-muted-foreground/70 transition-transform ${showAI ? "rotate-180" : ""}`} />
               </button>
@@ -392,7 +392,7 @@ export default function NewScanPage() {
             <section className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                 <Activity className="h-4 w-4 text-red-400" />
-                <span className="text-[13px] font-semibold text-white">Scan Profile</span>
+                <span className="text-[13px] font-semibold text-foreground">Scan Profile</span>
                 <span className="ml-auto text-[11px] text-muted-foreground/70">{activeModuleCount} module{activeModuleCount !== 1 ? "s" : ""}</span>
               </div>
               <div className="p-5">
@@ -405,7 +405,7 @@ export default function NewScanPage() {
                         type="button"
                         onClick={() => setProfile(p.value)}
                         className={`relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-all ${
-                          isActive ? p.active : "border-border bg-muted/20 hover:bg-muted/50 hover:border-white/15"
+                          isActive ? p.active : "border-border bg-muted/20 hover:bg-muted/50 hover:border-border"
                         }`}
                       >
                         <div className={`flex h-7 w-7 items-center justify-center rounded-lg border ${
@@ -448,13 +448,13 @@ export default function NewScanPage() {
               <section className="rounded-xl border border-amber-500/15 bg-card overflow-hidden">
                 <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                   <Shield className="h-4 w-4 text-amber-400" />
-                  <span className="text-[13px] font-semibold text-white">Module Selection</span>
+                  <span className="text-[13px] font-semibold text-foreground">Module Selection</span>
                   <span className="ml-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
                     {selected.size} selected
                   </span>
                   <div className="ml-auto flex gap-1.5">
                     <button type="button" onClick={() => setSelected(new Set(ALL_IDS))}
-                      className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-white hover:bg-muted/50 transition-colors">
+                      className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
                       All
                     </button>
                     <button type="button" onClick={() => setSelected(new Set())}
@@ -479,14 +479,14 @@ export default function NewScanPage() {
                               onClick={() => toggle(m.id)}
                               className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                                 on
-                                  ? "border-primary/40 bg-red-500/6 text-white"
-                                  : "border-border hover:border-white/15 text-muted-foreground hover:text-foreground/90"
+                                  ? "border-primary/40 bg-red-500/6 text-foreground"
+                                  : "border-border hover:border-border text-muted-foreground hover:text-foreground/90"
                               }`}
                             >
                               <div className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all ${
-                                on ? "bg-red-500 border-red-500" : "border-white/20 bg-muted/50"
+                                on ? "bg-primary border-primary" : "border-border bg-muted/50"
                               }`}>
-                                {on && <Check className="h-2.5 w-2.5 text-white" />}
+                                {on && <Check className="h-2.5 w-2.5 text-foreground" />}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -513,7 +513,7 @@ export default function NewScanPage() {
             <section className="rounded-xl border border-border bg-card overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                 <Server className="h-4 w-4 text-red-400" />
-                <span className="text-[13px] font-semibold text-white">Scan Options</span>
+                <span className="text-[13px] font-semibold text-foreground">Scan Options</span>
               </div>
               <div className="p-5 space-y-5">
 
@@ -546,7 +546,7 @@ export default function NewScanPage() {
                     <Input
                       type="number" min={1} max={500}
                       value={rate} onChange={e => setRate(Number(e.target.value))}
-                      className="bg-muted/50 border-border text-white h-9 font-mono focus:border-red-500/50"
+                      className="bg-muted/50 border-border text-foreground h-9 font-mono focus:border-red-500/50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -554,7 +554,7 @@ export default function NewScanPage() {
                     <Input
                       type="number" min={1} max={200}
                       value={threads} onChange={e => setThreads(Number(e.target.value))}
-                      className="bg-muted/50 border-border text-white h-9 font-mono focus:border-red-500/50"
+                      className="bg-muted/50 border-border text-foreground h-9 font-mono focus:border-red-500/50"
                     />
                   </div>
                 </div>
@@ -572,10 +572,10 @@ export default function NewScanPage() {
                       <div
                         onClick={() => opt.set(!opt.val)}
                         className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all cursor-pointer ${
-                          opt.val ? "bg-red-500 border-red-500" : "border-white/20 bg-muted/50 group-hover:border-white/40"
+                          opt.val ? "bg-primary border-primary" : "border-border bg-muted/50 group-hover:border-primary/40"
                         }`}
                       >
-                        {opt.val && <Check className="h-2.5 w-2.5 text-white" />}
+                        {opt.val && <Check className="h-2.5 w-2.5 text-foreground" />}
                       </div>
                       <div>
                         <p className="text-[13px] font-medium text-foreground/90">{opt.label}</p>
@@ -592,7 +592,7 @@ export default function NewScanPage() {
               <section className="rounded-xl border border-red-500/15 bg-card overflow-hidden">
                 <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
                   <Target className="h-4 w-4 text-red-400" />
-                  <span className="text-[13px] font-semibold text-white">Nuclei Configuration</span>
+                  <span className="text-[13px] font-semibold text-foreground">Nuclei Configuration</span>
                   <span className="ml-2 text-[11px] text-muted-foreground/70">
                     {nucleiCategories.size} template categor{nucleiCategories.size === 1 ? "y" : "ies"} · {nucleiSeverities.size} severit{nucleiSeverities.size === 1 ? "y" : "ies"}
                   </span>
@@ -630,11 +630,11 @@ export default function NewScanPage() {
                       <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Template Categories</Label>
                       <div className="flex gap-1.5">
                         <button type="button" onClick={() => setNucleiCategories(new Set(NUCLEI_CATEGORIES.map(c => c.path)))}
-                          className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-white hover:bg-muted/50 transition-colors">
+                          className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
                           All
                         </button>
                         <button type="button" onClick={() => setNucleiCategories(DEFAULT_NUCLEI_CATEGORIES)}
-                          className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-white hover:bg-muted/50 transition-colors">
+                          className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
                           Default
                         </button>
                         <button type="button" onClick={() => setNucleiCategories(new Set())}
@@ -652,14 +652,14 @@ export default function NewScanPage() {
                             onClick={() => toggleCategory(cat.path)}
                             className={`flex items-start gap-3 rounded-lg border p-2.5 cursor-pointer transition-all ${
                               on
-                                ? "border-primary/30 bg-red-500/5 text-white"
-                                : "border-border hover:border-white/15 text-muted-foreground hover:text-foreground/90"
+                                ? "border-primary/30 bg-red-500/5 text-foreground"
+                                : "border-border hover:border-border text-muted-foreground hover:text-foreground/90"
                             }`}
                           >
                             <div className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded border flex items-center justify-center transition-all ${
-                              on ? "bg-red-500 border-red-500" : "border-white/20 bg-muted/50"
+                              on ? "bg-primary border-primary" : "border-border bg-muted/50"
                             }`}>
-                              {on && <Check className="h-2 w-2 text-white" />}
+                              {on && <Check className="h-2 w-2 text-foreground" />}
                             </div>
                             <div className="min-w-0">
                               <p className="text-[12px] font-medium">{cat.label}</p>
@@ -688,11 +688,11 @@ export default function NewScanPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-white transition-all"
+                className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all"
               >
                 {submitting ? (
                   <>
-                    <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    <span className="h-3.5 w-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                     Launching…
                   </>
                 ) : (

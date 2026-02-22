@@ -188,14 +188,27 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-sidebar-border p-3 space-y-2">
-        <div className="flex items-center gap-1.5 px-1">
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-          </span>
-          <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/40 uppercase">Online</span>
-        </div>
 
+        {/* Theme toggle — full row, clearly visible */}
+        {mounted && (
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
+            {theme === "dark"
+              ? <Sun  className="h-3.5 w-3.5 shrink-0 text-primary" />
+              : <Moon className="h-3.5 w-3.5 shrink-0 text-primary" />
+            }
+            <span className="flex-1 text-left">
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </span>
+            <span className="text-[10px] text-muted-foreground/40 font-mono">
+              {theme === "dark" ? "☀" : "🌙"}
+            </span>
+          </button>
+        )}
+
+        {/* User row */}
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/12 border border-primary/20 text-[11px] font-bold text-primary">
             {initials}
@@ -203,18 +216,6 @@ export function Sidebar() {
           <span className="flex-1 min-w-0 text-[11px] text-muted-foreground truncate font-mono" title={user.email}>
             {user.email}
           </span>
-          {mounted && (
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors"
-              title={theme === "dark" ? "Light mode" : "Dark mode"}
-            >
-              {theme === "dark"
-                ? <Sun  className="h-3.5 w-3.5" />
-                : <Moon className="h-3.5 w-3.5" />
-              }
-            </button>
-          )}
           <button
             onClick={handleLogout}
             className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/8 transition-colors"

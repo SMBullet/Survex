@@ -177,7 +177,7 @@ export default function SettingsPage() {
               <Settings className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Settings</h1>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">Settings</h1>
               <p className="text-[12px] text-muted-foreground/70">Global API keys and integrations — auto-injected into every scan.</p>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function SettingsPage() {
               <div className="rounded-xl border border-border bg-card/90 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
                   <Key className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-[13px] font-semibold text-white">API Keys</span>
+                  <span className="text-[13px] font-semibold text-foreground">API Keys</span>
                   <span className="ml-auto text-[10px] text-muted-foreground/50">Stored securely per account · auto-used in scans</span>
                 </div>
                 <div className="p-5 space-y-5">
@@ -220,7 +220,7 @@ export default function SettingsPage() {
               <div className="rounded-xl border border-border bg-card/90 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
                   <Webhook className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-[13px] font-semibold text-white">Webhooks</span>
+                  <span className="text-[13px] font-semibold text-foreground">Webhooks</span>
                   <span className="ml-1 text-[10px] text-muted-foreground/50">Slack · Discord · custom</span>
                   <button
                     onClick={addWebhook}
@@ -284,7 +284,7 @@ export default function SettingsPage() {
               <div className="rounded-xl border border-violet-500/20 bg-card/90 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
                   <Brain className="h-4 w-4 text-violet-400" />
-                  <span className="text-[13px] font-semibold text-white">AI Assistant</span>
+                  <span className="text-[13px] font-semibold text-foreground">AI Assistant</span>
                   <span className="ml-auto text-[10px] text-muted-foreground/50">Powers: finding explanations · scan config · executive summaries</span>
                 </div>
                 <div className="p-5 space-y-5">
@@ -303,7 +303,7 @@ export default function SettingsPage() {
                             className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
                               active
                                 ? "border-violet-500/50 bg-violet-500/12 text-violet-300"
-                                : "border-border bg-muted/20 text-muted-foreground hover:border-white/15 hover:text-foreground/90"
+                                : "border-border bg-muted/20 text-muted-foreground hover:border-border hover:text-foreground/90"
                             }`}
                           >
                             <span className="text-[13px] font-semibold">{p.label}</span>
@@ -407,7 +407,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors"
+                  className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                   {saving ? "Saving…" : "Save Settings"}

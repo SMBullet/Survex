@@ -133,13 +133,13 @@ export default function SchedulesPage() {
                 <CalendarClock className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Recurring Scans</h1>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">Recurring Scans</h1>
                 <p className="text-[12px] text-muted-foreground/70">Automated scans that run on a schedule and alert you to changes.</p>
               </div>
             </div>
             <button
               onClick={() => setShowForm(s => !s)}
-              className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-4 py-2 text-sm font-semibold text-white transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors"
             >
               <Plus className="h-4 w-4" />
               New Schedule
@@ -150,7 +150,7 @@ export default function SchedulesPage() {
           {showForm && (
             <div className="rounded-xl border border-primary/20 bg-card overflow-hidden">
               <div className="px-5 py-3.5 border-b border-border bg-primary/4">
-                <span className="text-[13px] font-semibold text-white">New Recurring Scan</span>
+                <span className="text-[13px] font-semibold text-foreground">New Recurring Scan</span>
               </div>
               <div className="p-5 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -210,7 +210,7 @@ export default function SchedulesPage() {
                   <button
                     onClick={handleCreate}
                     disabled={creating}
-                    className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-4 py-2 text-[13px] font-semibold text-white transition-colors"
+                    className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-colors"
                   >
                     {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />}
                     {creating ? "Creating…" : "Create Schedule"}
@@ -229,7 +229,7 @@ export default function SchedulesPage() {
             <div className="rounded-xl border border-border bg-card flex flex-col items-center justify-center gap-4 py-20">
               <CalendarClock className="h-10 w-10 text-muted-foreground/50" />
               <div className="text-center space-y-1">
-                <p className="font-semibold text-white">No recurring scans</p>
+                <p className="font-semibold text-foreground">No recurring scans</p>
                 <p className="text-sm text-muted-foreground">Create a schedule to automatically monitor your attack surface.</p>
               </div>
             </div>

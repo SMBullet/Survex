@@ -85,7 +85,7 @@ export default function CloudPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#0d0018] bg-dots">
+      <main className="min-h-screen bg-background bg-dots">
         <div className="mx-auto max-w-5xl px-6 py-8 space-y-8">
 
           {/* Header */}
@@ -94,9 +94,9 @@ export default function CloudPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 <Cloud className="h-5 w-5" />
               </div>
-              <h1 className="text-2xl font-bold text-white">Cloud Asset Discovery</h1>
+              <h1 className="text-2xl font-bold text-foreground">Cloud Asset Discovery</h1>
             </div>
-            <p className="text-zinc-500 text-sm">
+            <p className="text-muted-foreground text-sm">
               Enumerate and assess your cloud infrastructure exposure across AWS, Azure, and GCP.
             </p>
           </div>
@@ -104,7 +104,7 @@ export default function CloudPage() {
           {/* Provider cards */}
           <div className="grid gap-4 lg:grid-cols-3">
             {PROVIDERS.map(p => (
-              <div key={p.id} className={`rounded-xl border ${p.border} ${p.bg} bg-[#160025]/60 p-5 space-y-4 relative flex flex-col`}>
+              <div key={p.id} className={`rounded-xl border ${p.border} ${p.bg} bg-card p-5 space-y-4 relative flex flex-col`}>
                 <span className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-0.5 rounded border ${p.badgeColor}`}>
                   {p.badge}
                 </span>
@@ -112,14 +112,14 @@ export default function CloudPage() {
                 <div className={p.color}>{p.icon}</div>
 
                 <div>
-                  <p className="font-semibold text-white">{p.name}</p>
-                  <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{p.description}</p>
+                  <p className="font-semibold text-foreground">{p.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
                 </div>
 
                 <ul className="space-y-1.5 flex-1">
                   {p.features.map(f => (
-                    <li key={f} className="flex items-start gap-2 text-xs text-zinc-600">
-                      <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-zinc-700" />
+                    <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground/60">
+                      <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground/40" />
                       {f}
                     </li>
                   ))}
@@ -127,7 +127,7 @@ export default function CloudPage() {
 
                 <Link
                   href={p.href}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 >
                   Configure {p.short}
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -137,18 +137,18 @@ export default function CloudPage() {
           </div>
 
           {/* Cloud storage scan — already available */}
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 space-y-3">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-red-400 animate-pulse" />
-              <p className="font-semibold text-sm text-red-400">Available Now — Cloud Storage Scan</p>
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <p className="font-semibold text-sm text-primary">Available Now — Cloud Storage Scan</p>
             </div>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               S3, GCS, and Azure Blob exposure detection is already available in the standard scan pipeline.
-              Use the <span className="font-mono text-xs bg-white/5 border border-white/[0.07] px-1.5 py-0.5 rounded text-zinc-300">s3</span> module when creating a new scan.
+              Use the <span className="font-mono text-xs bg-muted/50 border border-border px-1.5 py-0.5 rounded text-foreground/80">s3</span> module when creating a new scan.
             </p>
             <Link
               href="/scans/new"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium px-4 py-2 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-4 py-2 transition-colors"
             >
               Start Cloud Storage Scan
               <ChevronRight className="h-3.5 w-3.5" />
@@ -156,12 +156,12 @@ export default function CloudPage() {
           </div>
 
           {/* Tips */}
-          <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 p-5 space-y-3">
-            <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Security Tips</p>
+          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">Security Tips</p>
             <div className="space-y-2">
               {TIPS.map((t, i) => (
-                <div key={i} className="flex items-start gap-2.5 text-sm text-zinc-500">
-                  <span className="shrink-0 mt-0.5 text-zinc-700">{t.icon}</span>
+                <div key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                  <span className="shrink-0 mt-0.5 text-muted-foreground/40">{t.icon}</span>
                   {t.text}
                 </div>
               ))}

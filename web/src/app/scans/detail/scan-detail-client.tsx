@@ -444,7 +444,7 @@ export default function ScanDetailClient() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-2">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-xl font-bold text-white tracking-tight">{scan?.client ?? id}</h1>
+                  <h1 className="text-xl font-bold text-foreground tracking-tight">{scan?.client ?? id}</h1>
                   {scan && (
                     <span className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-[11px] font-bold tracking-wider ${STATUS_BADGE[scan.status]}`}>
                       {scan.status === "running"   && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -482,7 +482,7 @@ export default function ScanDetailClient() {
                   <a
                     href={api.scans.reportUrl(id)}
                     target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors"
+                    className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-[13px] font-semibold text-primary-foreground transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     HTML Report
@@ -514,8 +514,8 @@ export default function ScanDetailClient() {
               {[
                 { icon: <Target className="h-3.5 w-3.5" />,         label: "Target",   val: <span className="font-mono text-[11px] text-foreground/90 truncate block">{scan.targets}</span> },
                 { icon: <Layers className="h-3.5 w-3.5" />,         label: "Modules",  val: <span className="font-mono text-[11px] text-foreground/90 truncate block">{scan.modules || "(profile)"}</span> },
-                { icon: <AlertTriangle className="h-3.5 w-3.5" />,  label: "Findings", val: <div className="flex items-center gap-2"><span className="text-2xl font-bold text-white tabular-nums">{scan.finding_count}</span><SeverityBadge severity={scan.max_severity ?? ""} /></div> },
-                { icon: <Clock className="h-3.5 w-3.5" />,          label: "Duration", val: <span className="text-2xl font-bold text-white tabular-nums">{scan.started_at ? formatDuration(scan.started_at, scan.finished_at) : "—"}</span> },
+                { icon: <AlertTriangle className="h-3.5 w-3.5" />,  label: "Findings", val: <div className="flex items-center gap-2"><span className="text-2xl font-bold text-foreground tabular-nums">{scan.finding_count}</span><SeverityBadge severity={scan.max_severity ?? ""} /></div> },
+                { icon: <Clock className="h-3.5 w-3.5" />,          label: "Duration", val: <span className="text-2xl font-bold text-foreground tabular-nums">{scan.started_at ? formatDuration(scan.started_at, scan.finished_at) : "—"}</span> },
               ].map(({ icon, label, val }) => (
                 <div key={label} className="rounded-xl border border-border bg-card/90 p-4">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-widest font-bold mb-2">
@@ -647,7 +647,7 @@ export default function ScanDetailClient() {
               <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-violet-500/[0.03]">
                 <div className="flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-violet-400" />
-                  <span className="text-[13px] font-semibold text-white">Technologies Detected</span>
+                  <span className="text-[13px] font-semibold text-foreground">Technologies Detected</span>
                   <span className="rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-400">
                     {technologies.length}
                   </span>
@@ -741,7 +741,7 @@ export default function ScanDetailClient() {
                 <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
                   <div className="flex items-center gap-2.5">
                     <ShieldAlert className="h-4 w-4 text-orange-400" />
-                    <span className="text-[13px] font-semibold text-white">Findings</span>
+                    <span className="text-[13px] font-semibold text-foreground">Findings</span>
                     <span className="text-[11px] text-muted-foreground/70">
                       {filteredFindings.length}{findings.length !== filteredFindings.length ? ` of ${findings.length}` : ""}
                     </span>
@@ -832,7 +832,7 @@ export default function ScanDetailClient() {
                 </div>
 
                 {/* Search + filter bar */}
-                <div className="flex items-center gap-3 px-5 py-2.5 border-b border-white/[0.04] bg-white/[0.005]">
+                <div className="flex items-center gap-3 px-5 py-2.5 border-b border-border bg-muted/10">
                   <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
                     <input
@@ -857,7 +857,7 @@ export default function ScanDetailClient() {
                 </div>
 
                 {/* Column headers */}
-                <div className="hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-2 border-b border-white/[0.04] bg-white/[0.01]">
+                <div className="hidden sm:grid sm:grid-cols-[1fr_minmax(0,160px)_160px_80px_20px] gap-0 px-5 py-2 border-b border-border bg-muted/10">
                   {["Finding", "Asset", "Risk", "Action", ""].map(h => (
                     <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{h}</p>
                   ))}
@@ -888,7 +888,7 @@ export default function ScanDetailClient() {
                           {/* Title */}
                           <div className="flex items-center gap-2 min-w-0 pr-4">
                             {f.new && <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" title="New" />}
-                            <span className="text-[12px] text-foreground/90 font-medium truncate group-hover:text-white transition-colors leading-tight">
+                            <span className="text-[12px] text-foreground/90 font-medium truncate group-hover:text-foreground transition-colors leading-tight">
                               {f.title}
                             </span>
                           </div>

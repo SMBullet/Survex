@@ -103,7 +103,7 @@ export default function AssetsPage() {
                 <Database className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Asset Inventory</h1>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">Asset Inventory</h1>
                 <p className="text-[12px] text-muted-foreground/70">All discovered assets across every scan — with first and last seen timestamps.</p>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function AssetsPage() {
                     onClick={() => setTypeFilter(t)}
                     className={`rounded-md border px-3 py-2 text-[11px] font-bold transition-all ${
                       typeFilter === t
-                        ? "bg-zinc-700/40 border-white/[0.12] text-foreground"
+                        ? "bg-muted/60 border-border/60 text-foreground"
                         : "border-border text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/40"
                     }`}
                   >
@@ -178,7 +178,7 @@ export default function AssetsPage() {
             <div className="rounded-xl border border-border bg-card flex flex-col items-center justify-center gap-4 py-20">
               <Database className="h-10 w-10 text-muted-foreground/50" />
               <div className="text-center space-y-1">
-                <p className="font-semibold text-white">No assets yet</p>
+                <p className="font-semibold text-foreground">No assets yet</p>
                 <p className="text-sm text-muted-foreground">Run scans to discover and track your attack surface assets.</p>
               </div>
             </div>
@@ -203,7 +203,7 @@ export default function AssetsPage() {
                       {/* Asset */}
                       <div className="flex items-center gap-2 min-w-0 pr-3">
                         <span className={`shrink-0 ${style.text}`}>{style.icon}</span>
-                        <span className="text-[12px] font-mono text-foreground/90 truncate group-hover:text-white transition-colors">{a.asset}</span>
+                        <span className="text-[12px] font-mono text-foreground/90 truncate group-hover:text-foreground transition-colors">{a.asset}</span>
                       </div>
                       {/* Type badge */}
                       <div>
@@ -247,7 +247,7 @@ export default function AssetsPage() {
                 })}
               </div>
 
-              <div className="px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.01]">
+              <div className="px-5 py-2.5 border-t border-border bg-muted/10">
                 <span className="text-[10px] text-muted-foreground/50">
                   Showing {filtered.length} of {assets.length} assets
                 </span>
