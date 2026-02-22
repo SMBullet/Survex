@@ -26,7 +26,7 @@ export function Nav() {
         {/* Logo + nav */}
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="flex items-center gap-2 font-bold tracking-tight">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-white">
               <Shield className="h-4 w-4" />
             </div>
             <span>Survex</span>

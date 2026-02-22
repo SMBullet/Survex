@@ -26,11 +26,11 @@ function timeAgo(iso: string) {
 }
 
 const STATUS_CFG: Record<string, { dot: string; badge: string; rowExtra: string; label: string }> = {
-  queued:    { dot: "bg-zinc-500",                badge: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",        rowExtra: "",                              label: "QUEUED"    },
-  running:   { dot: "bg-blue-400 animate-pulse",  badge: "bg-blue-500/15 text-blue-400 border-blue-500/25",        rowExtra: "border-l-[2px] border-l-blue-500/60",  label: "RUNNING"   },
-  done:      { dot: "bg-emerald-400",             badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25", rowExtra: "",                              label: "DONE"      },
-  failed:    { dot: "bg-red-400",                 badge: "bg-red-500/15 text-red-400 border-red-500/25",           rowExtra: "border-l-[2px] border-l-red-500/60",   label: "FAILED"    },
-  cancelled: { dot: "bg-zinc-600",               badge: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",        rowExtra: "",                              label: "CANCELLED" },
+  queued:    { dot: "bg-zinc-500",                badge: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",         rowExtra: "",                               label: "QUEUED"    },
+  running:   { dot: "bg-blue-400 animate-pulse",  badge: "bg-blue-500/15 text-blue-400 border-blue-500/25",         rowExtra: "border-l-[2px] border-l-blue-500/60",   label: "RUNNING"   },
+  done:      { dot: "bg-amber-400",               badge: "bg-amber-500/15 text-amber-400 border-amber-500/25",      rowExtra: "",                               label: "DONE"      },
+  failed:    { dot: "bg-red-400",                 badge: "bg-red-500/15 text-red-400 border-red-500/25",            rowExtra: "border-l-[2px] border-l-red-500/60",    label: "FAILED"    },
+  cancelled: { dot: "bg-zinc-600",               badge: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",         rowExtra: "",                               label: "CANCELLED" },
 };
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
@@ -39,18 +39,18 @@ function StatCard({
   icon, label, value, sub, color,
 }: {
   icon: React.ReactNode; label: string; value: number | string;
-  sub?: string; color?: "emerald" | "blue" | "red" | "amber";
+  sub?: string; color?: "red" | "blue" | "amber" | "violet";
 }) {
   const map = {
-    emerald: { border: "border-emerald-500/20", icon: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400", val: "text-emerald-400" },
-    blue:    { border: "border-blue-500/20",    icon: "bg-blue-500/10 border-blue-500/25 text-blue-400",          val: "text-blue-400"    },
-    red:     { border: "border-red-500/20",     icon: "bg-red-500/10 border-red-500/25 text-red-400",             val: "text-red-400"     },
-    amber:   { border: "border-amber-500/20",   icon: "bg-amber-500/10 border-amber-500/25 text-amber-400",       val: "text-amber-400"   },
+    red:    { border: "border-red-500/20",    icon: "bg-red-500/10 border-red-500/25 text-red-400",          val: "text-red-400"    },
+    blue:   { border: "border-blue-500/20",   icon: "bg-blue-500/10 border-blue-500/25 text-blue-400",       val: "text-blue-400"   },
+    amber:  { border: "border-amber-500/20",  icon: "bg-amber-500/10 border-amber-500/25 text-amber-400",    val: "text-amber-400"  },
+    violet: { border: "border-violet-500/20", icon: "bg-violet-500/10 border-violet-500/25 text-violet-400", val: "text-violet-400" },
   };
   const theme = color ? map[color] : { border: "border-white/[0.07]", icon: "bg-white/5 border-white/[0.08] text-zinc-500", val: "text-white" };
 
   return (
-    <div className={`rounded-xl border bg-[#0a1628]/70 p-5 transition-all ${theme.border}`}>
+    <div className={`rounded-xl border bg-[#160025]/70 p-5 transition-all hover:border-opacity-50 ${theme.border}`}>
       <div className="flex items-center justify-between mb-4">
         <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${theme.icon}`}>
           {icon}
@@ -67,10 +67,10 @@ function StatCard({
 
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex flex-col items-center justify-center gap-6 py-24">
+    <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex flex-col items-center justify-center gap-6 py-24">
       <div className="relative">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/8">
-          <Target className="h-7 w-7 text-emerald-400/50" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/8 glow-sm-red">
+          <Target className="h-7 w-7 text-red-400/50" />
         </div>
       </div>
       <div className="text-center space-y-1.5">
@@ -79,7 +79,7 @@ function EmptyState() {
       </div>
       <Link
         href="/scans/new"
-        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+        className="inline-flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors glow-sm-red"
       >
         <Plus className="h-4 w-4" />
         Start a Scan
@@ -119,7 +119,7 @@ export default function Dashboard() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#030812] bg-dots">
+      <main className="min-h-screen bg-[#0d0018] bg-dots">
         <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
 
           {/* Header */}
@@ -148,7 +148,7 @@ export default function Dashboard() {
               </button>
               <Link
                 href="/scans/new"
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
+                className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
                 New Scan
@@ -160,13 +160,13 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard icon={<Shield className="h-4 w-4" />}        label="Total Scans" value={total} />
             <StatCard icon={<Activity className="h-4 w-4" />}      label="Active"      value={active}         sub={active > 0 ? "running or queued" : "all idle"}        color={active > 0 ? "blue" : undefined} />
-            <StatCard icon={<CheckCircle2 className="h-4 w-4" />}  label="Completed"   value={done}                                                                      color={done > 0 ? "emerald" : undefined} />
+            <StatCard icon={<CheckCircle2 className="h-4 w-4" />}  label="Completed"   value={done}                                                                      color={done > 0 ? "amber" : undefined} />
             <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="High Risk"   value={criticalOrHigh} sub={criticalOrHigh > 0 ? "critical or high findings" : "no threats"} color={criticalOrHigh > 0 ? "red" : undefined} />
           </div>
 
           {/* Scan table */}
           {fetching && scans.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex items-center justify-center h-48">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex items-center justify-center h-48">
               <div className="flex items-center gap-3 text-zinc-500 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />Loading operations…
               </div>
@@ -174,7 +174,7 @@ export default function Dashboard() {
           ) : scans.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
 
               {/* Column headers */}
               <div className="hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] gap-0 px-5 py-2.5 border-b border-white/[0.05] bg-white/[0.015]">

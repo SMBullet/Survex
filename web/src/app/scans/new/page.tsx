@@ -130,9 +130,9 @@ const PROFILES = [
     value: "full",    label: "Full",    icon: <Shield className="h-4 w-4" />,
     desc: "Every module — most thorough",
     modules: ALL_IDS,
-    color: "border-emerald-500/30 bg-emerald-500/8",
-    active: "border-emerald-500 bg-emerald-500/15 text-emerald-300",
-    iconColor: "text-emerald-400",
+    color: "border-rose-500/30 bg-rose-500/8",
+    active: "border-rose-500 bg-rose-500/15 text-rose-300",
+    iconColor: "text-rose-400",
   },
   {
     value: "passive", label: "Passive", icon: <Eye className="h-4 w-4" />,
@@ -251,7 +251,7 @@ export default function NewScanPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#030812] bg-dots">
+      <main className="min-h-screen bg-[#0d0018] bg-dots">
         <div className="mx-auto max-w-5xl px-6 py-8">
 
           {/* Header */}
@@ -268,9 +268,9 @@ export default function NewScanPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
 
             {/* ── Target ────────────────────────────────────────────────── */}
-            <section className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+            <section className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
-                <Globe className="h-4 w-4 text-emerald-400" />
+                <Globe className="h-4 w-4 text-red-400" />
                 <span className="text-[13px] font-semibold text-white">Target Scope</span>
               </div>
               <div className="p-5 grid gap-4 sm:grid-cols-2">
@@ -282,7 +282,7 @@ export default function NewScanPage() {
                     placeholder="acme-corp"
                     value={client}
                     onChange={e => setClient(e.target.value)}
-                    className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-700 focus:border-emerald-500/50 h-9"
+                    className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-700 focus:border-red-500/50 h-9"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
@@ -294,7 +294,7 @@ export default function NewScanPage() {
                     rows={4}
                     value={targetsText}
                     onChange={e => setTargets(e.target.value)}
-                    className="font-mono text-sm resize-none bg-white/[0.04] border-white/[0.08] text-emerald-300 placeholder:text-zinc-700 focus:border-emerald-500/50"
+                    className="font-mono text-sm resize-none bg-white/[0.04] border-white/[0.08] text-amber-300 placeholder:text-zinc-700 focus:border-red-500/50"
                     required
                   />
                   <p className="text-[11px] text-zinc-600">Domains, IPs, or CIDR ranges — one per line or comma-separated.</p>
@@ -303,9 +303,9 @@ export default function NewScanPage() {
             </section>
 
             {/* ── Profile selector ──────────────────────────────────────── */}
-            <section className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+            <section className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
-                <Activity className="h-4 w-4 text-emerald-400" />
+                <Activity className="h-4 w-4 text-red-400" />
                 <span className="text-[13px] font-semibold text-white">Scan Profile</span>
                 <span className="ml-auto text-[11px] text-zinc-600">{activeModuleCount} module{activeModuleCount !== 1 ? "s" : ""}</span>
               </div>
@@ -359,7 +359,7 @@ export default function NewScanPage() {
 
             {/* ── Custom module picker ───────────────────────────────────── */}
             {profile === "custom" && (
-              <section className="rounded-xl border border-amber-500/15 bg-[#0a1628]/70 overflow-hidden">
+              <section className="rounded-xl border border-amber-500/15 bg-[#160025]/70 overflow-hidden">
                 <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
                   <Shield className="h-4 w-4 text-amber-400" />
                   <span className="text-[13px] font-semibold text-white">Module Selection</span>
@@ -393,12 +393,12 @@ export default function NewScanPage() {
                               onClick={() => toggle(m.id)}
                               className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
                                 on
-                                  ? "border-emerald-500/40 bg-emerald-500/6 text-white"
+                                  ? "border-red-500/40 bg-red-500/6 text-white"
                                   : "border-white/[0.06] hover:border-white/15 text-zinc-500 hover:text-zinc-300"
                               }`}
                             >
                               <div className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all ${
-                                on ? "bg-emerald-500 border-emerald-500" : "border-white/20 bg-white/5"
+                                on ? "bg-red-500 border-red-500" : "border-white/20 bg-white/5"
                               }`}>
                                 {on && <Check className="h-2.5 w-2.5 text-white" />}
                               </div>
@@ -424,9 +424,9 @@ export default function NewScanPage() {
             )}
 
             {/* ── Options ───────────────────────────────────────────────── */}
-            <section className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+            <section className="rounded-xl border border-white/[0.07] bg-[#160025]/70 overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
-                <Server className="h-4 w-4 text-emerald-400" />
+                <Server className="h-4 w-4 text-red-400" />
                 <span className="text-[13px] font-semibold text-white">Scan Options</span>
               </div>
               <div className="p-5 space-y-5">
@@ -442,7 +442,7 @@ export default function NewScanPage() {
                         onClick={() => setPorts(p.value)}
                         className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] transition-all ${
                           ports === p.value
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                            ? "border-red-500/40 bg-red-500/10 text-red-300"
                             : "border-white/[0.07] bg-white/[0.02] text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
                         }`}
                       >
@@ -460,7 +460,7 @@ export default function NewScanPage() {
                     <Input
                       type="number" min={1} max={500}
                       value={rate} onChange={e => setRate(Number(e.target.value))}
-                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-emerald-500/50"
+                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-red-500/50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -468,7 +468,7 @@ export default function NewScanPage() {
                     <Input
                       type="number" min={1} max={200}
                       value={threads} onChange={e => setThreads(Number(e.target.value))}
-                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-emerald-500/50"
+                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-red-500/50"
                     />
                   </div>
                 </div>
@@ -486,7 +486,7 @@ export default function NewScanPage() {
                       <div
                         onClick={() => opt.set(!opt.val)}
                         className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all cursor-pointer ${
-                          opt.val ? "bg-emerald-500 border-emerald-500" : "border-white/20 bg-white/5 group-hover:border-white/40"
+                          opt.val ? "bg-red-500 border-red-500" : "border-white/20 bg-white/5 group-hover:border-white/40"
                         }`}
                       >
                         {opt.val && <Check className="h-2.5 w-2.5 text-white" />}
@@ -503,7 +503,7 @@ export default function NewScanPage() {
 
             {/* ── Nuclei Configuration ──────────────────────────────────── */}
             {nucleiActive && (
-              <section className="rounded-xl border border-red-500/15 bg-[#0a1628]/70 overflow-hidden">
+              <section className="rounded-xl border border-red-500/15 bg-[#160025]/70 overflow-hidden">
                 <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
                   <Target className="h-4 w-4 text-red-400" />
                   <span className="text-[13px] font-semibold text-white">Nuclei Configuration</span>
@@ -602,7 +602,7 @@ export default function NewScanPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-white transition-all"
+                className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-white transition-all"
               >
                 {submitting ? (
                   <>

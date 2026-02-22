@@ -28,7 +28,7 @@ function InputField({
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-lg border border-white/[0.08] bg-[#060c18] px-3.5 py-2.5 text-[13px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 transition-all font-mono"
+          className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 text-[13px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 focus:ring-1 focus:ring-red-500/20 transition-all font-mono"
         />
         {isPassword && (
           <button
@@ -130,7 +130,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#030812] bg-dots">
+      <main className="min-h-screen bg-[#0d0018] bg-dots">
         <div className="mx-auto max-w-3xl px-6 py-8 space-y-6">
 
           {/* Header */}
@@ -141,7 +141,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#0a1628]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#160025]">
               <Settings className="h-5 w-5 text-zinc-400" />
             </div>
             <div>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
             <div className="space-y-5">
 
               {/* API Keys section */}
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+              <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
                   <Key className="h-4 w-4 text-zinc-500" />
                   <span className="text-[13px] font-semibold text-white">API Keys</span>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Webhooks section */}
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+              <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
                   <Webhook className="h-4 w-4 text-zinc-500" />
                   <span className="text-[13px] font-semibold text-white">Webhooks</span>
@@ -206,21 +206,21 @@ export default function SettingsPage() {
                     </p>
                   ) : (
                     settings.webhook_urls.map((wh, i) => (
-                      <div key={i} className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-[#060c18]/60 p-3.5">
+                      <div key={i} className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-[#0a0014]/60 p-3.5">
                         <div className="flex-1 grid gap-2 sm:grid-cols-[160px_1fr]">
                           <input
                             type="text"
                             value={wh.name}
                             onChange={e => updateWebhook(i, "name", e.target.value)}
                             placeholder="Label (e.g. Slack #alerts)"
-                            className="rounded-md border border-white/[0.07] bg-[#0a1628] px-3 py-2 text-[12px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 transition-all"
+                            className="rounded-md border border-white/[0.07] bg-[#160025] px-3 py-2 text-[12px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
                           />
                           <input
                             type="url"
                             value={wh.url}
                             onChange={e => updateWebhook(i, "url", e.target.value)}
                             placeholder="https://hooks.slack.com/services/…"
-                            className="rounded-md border border-white/[0.07] bg-[#0a1628] px-3 py-2 text-[12px] font-mono text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 transition-all"
+                            className="rounded-md border border-white/[0.07] bg-[#160025] px-3 py-2 text-[12px] font-mono text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                           >
                             {testingIdx === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                           </button>
-                          {testResult[i] === "ok"   && <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />}
+                          {testResult[i] === "ok"   && <CheckCircle2 className="h-4 w-4 text-red-400 shrink-0" />}
                           {testResult[i] === "fail" && <AlertCircle  className="h-4 w-4 text-red-400 shrink-0" />}
                           <button
                             onClick={() => removeWebhook(i)}
@@ -249,7 +249,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Save bar */}
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#0a1628]/60 px-5 py-3.5">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#160025]/60 px-5 py-3.5">
                 {error && (
                   <div className="flex items-center gap-2 text-[12px] text-red-400">
                     <AlertCircle className="h-4 w-4 shrink-0" />
@@ -257,7 +257,7 @@ export default function SettingsPage() {
                   </div>
                 )}
                 {saved && !error && (
-                  <div className="flex items-center gap-2 text-[12px] text-emerald-400">
+                  <div className="flex items-center gap-2 text-[12px] text-red-400">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     Settings saved.
                   </div>
@@ -266,7 +266,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors"
+                  className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors"
                 >
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                   {saving ? "Saving…" : "Save Settings"}

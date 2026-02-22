@@ -42,41 +42,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#030712]">
+    <div className="flex min-h-screen bg-[#0d0018]">
 
       {/* ── Left branding panel ─────────────────────────────────────── */}
-      <div className="hidden lg:flex relative w-[52%] flex-col overflow-hidden bg-[#040d1a]">
+      <div className="hidden lg:flex relative w-[52%] flex-col overflow-hidden bg-[#0f0020]">
 
-        {/* Grid background */}
-        <div className="absolute inset-0 bg-grid opacity-60" />
+        {/* Circuit grid background */}
+        <div className="absolute inset-0 bg-circuit opacity-70" />
 
-        {/* Radial glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_60%,rgba(16,185,129,0.08)_0%,transparent_60%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+        {/* Radial glow — red */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_60%,rgba(239,68,68,0.1)_0%,transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_20%,rgba(251,191,36,0.05)_0%,transparent_50%)]" />
+
+        {/* Bottom gradient line */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
+        {/* Top gradient line */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
 
         {/* Content */}
         <div className="relative z-10 flex flex-1 flex-col justify-between p-12">
 
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10">
-              <Shield className="h-5 w-5 text-emerald-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 glow-sm-red">
+              <Shield className="h-5 w-5 text-red-400" />
             </div>
             <div>
               <p className="text-[15px] font-bold tracking-widest text-white">SURVEX</p>
-              <p className="text-[9px] tracking-widest text-emerald-500/50 font-semibold">ATTACK SURFACE MANAGEMENT</p>
+              <p className="text-[9px] tracking-widest text-red-500/50 font-semibold">ATTACK SURFACE MANAGEMENT</p>
             </div>
           </div>
 
           {/* Main copy */}
           <div className="space-y-6">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/8 px-3 py-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[11px] font-medium text-emerald-400 tracking-widest">THREAT INTELLIGENCE PLATFORM</span>
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/8 px-3 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                <span className="text-[11px] font-medium text-red-400 tracking-widest">THREAT INTELLIGENCE PLATFORM</span>
               </div>
-              <h1 className="text-[42px] font-bold leading-[1.1] tracking-tight text-white">
-                Know your<br />attack surface.
+              <h1 className="text-[42px] font-bold leading-[1.1] tracking-tight text-white animate-flicker">
+                Know your<br />
+                <span className="bg-gradient-to-r from-red-400 via-orange-400 to-amber-400 bg-clip-text text-transparent">
+                  attack surface.
+                </span>
               </h1>
               <p className="text-[15px] leading-relaxed text-zinc-400 max-w-sm">
                 Enumerate subdomains, scan ports, detect vulnerabilities,
@@ -87,8 +95,8 @@ export default function LoginPage() {
             {/* Feature grid */}
             <div className="grid grid-cols-2 gap-2.5">
               {FEATURES.map(f => (
-                <div key={f.label} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/8 text-emerald-400">
+                <div key={f.label} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 hover:border-red-500/20 hover:bg-red-500/4 transition-all">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/8 text-red-400">
                     {f.icon}
                   </div>
                   <div>
@@ -108,13 +116,17 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right auth panel ─────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-[360px] space-y-8">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-[#0d0018]">
+
+        {/* Subtle background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,rgba(139,0,30,0.06)_0%,transparent_60%)] pointer-events-none" />
+
+        <div className="relative w-full max-w-[360px] space-y-8">
 
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10">
-              <Shield className="h-4.5 w-4.5 text-emerald-400" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10">
+              <Shield className="h-4 w-4 text-red-400" />
             </div>
             <span className="text-[15px] font-bold tracking-widest text-white">SURVEX</span>
           </div>
@@ -138,7 +150,7 @@ export default function LoginPage() {
                 onClick={() => { setTab(t); setError(""); }}
                 className={`flex-1 rounded-md py-2 text-[13px] font-medium transition-all ${
                   tab === t
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+                    ? "bg-red-500/15 text-red-400 border border-red-500/25"
                     : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
@@ -156,7 +168,7 @@ export default function LoginPage() {
                 placeholder="operator@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 h-10"
+                className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:ring-red-500/20 h-10"
                 autoComplete="email"
                 required
               />
@@ -170,7 +182,7 @@ export default function LoginPage() {
                   placeholder={tab === "register" ? "Minimum 8 characters" : "••••••••"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 h-10 pr-10"
+                  className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus:border-red-500/50 focus:ring-red-500/20 h-10 pr-10"
                   autoComplete={tab === "login" ? "current-password" : "new-password"}
                   required
                   minLength={tab === "register" ? 8 : 1}
@@ -195,7 +207,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-10 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all"
+              className="w-full h-10 bg-red-600 hover:bg-red-500 text-white font-semibold transition-all glow-sm-red"
             >
               {loading ? (
                 <span className="flex items-center gap-2">

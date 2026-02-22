@@ -116,7 +116,7 @@ export default function SchedulesPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#030812] bg-dots">
+      <main className="min-h-screen bg-[#0d0018] bg-dots">
         <div className="mx-auto max-w-4xl px-6 py-8 space-y-6">
 
           {/* Breadcrumb */}
@@ -129,7 +129,7 @@ export default function SchedulesPage() {
           {/* Header */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#0a1628]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#160025]">
                 <CalendarClock className="h-5 w-5 text-zinc-400" />
               </div>
               <div>
@@ -139,7 +139,7 @@ export default function SchedulesPage() {
             </div>
             <button
               onClick={() => setShowForm(s => !s)}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
             >
               <Plus className="h-4 w-4" />
               New Schedule
@@ -148,8 +148,8 @@ export default function SchedulesPage() {
 
           {/* Create form */}
           {showForm && (
-            <div className="rounded-xl border border-emerald-500/20 bg-[#0a1628]/80 overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-white/[0.05] bg-emerald-500/[0.03]">
+            <div className="rounded-xl border border-red-500/20 bg-[#160025]/80 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-white/[0.05] bg-red-500/[0.03]">
                 <span className="text-[13px] font-semibold text-white">New Recurring Scan</span>
               </div>
               <div className="p-5 space-y-4">
@@ -160,7 +160,7 @@ export default function SchedulesPage() {
                       value={formClient}
                       onChange={e => setFormClient(e.target.value)}
                       placeholder="e.g. acme-corp"
-                      className="w-full rounded-lg border border-white/[0.08] bg-[#060c18] px-3.5 py-2.5 text-[13px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 transition-all"
+                      className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 text-[13px] text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -168,7 +168,7 @@ export default function SchedulesPage() {
                     <select
                       value={formInterval}
                       onChange={e => setFormInterval(Number(e.target.value))}
-                      className="w-full rounded-lg border border-white/[0.08] bg-[#060c18] px-3.5 py-2.5 text-[13px] text-zinc-200 focus:outline-none focus:border-emerald-500/40 transition-all"
+                      className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 text-[13px] text-zinc-200 focus:outline-none focus:border-red-500/40 transition-all"
                     >
                       {INTERVALS.map(iv => (
                         <option key={iv.h} value={iv.h}>{iv.label}</option>
@@ -183,7 +183,7 @@ export default function SchedulesPage() {
                     onChange={e => setFormTargets(e.target.value)}
                     placeholder="example.com&#10;app.example.com"
                     rows={3}
-                    className="w-full rounded-lg border border-white/[0.08] bg-[#060c18] px-3.5 py-2.5 text-[13px] font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 transition-all resize-none"
+                    className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 text-[13px] font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all resize-none"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -192,7 +192,7 @@ export default function SchedulesPage() {
                     value={formModules}
                     onChange={e => setFormModules(e.target.value)}
                     placeholder="httpx,tls,headers,cors,nuclei"
-                    className="w-full rounded-lg border border-white/[0.08] bg-[#060c18] px-3.5 py-2.5 text-[13px] font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 transition-all"
+                    className="w-full rounded-lg border border-white/[0.08] bg-[#0a0014] px-3.5 py-2.5 text-[13px] font-mono text-zinc-200 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
                   />
                 </div>
                 {formError && (
@@ -210,7 +210,7 @@ export default function SchedulesPage() {
                   <button
                     onClick={handleCreate}
                     disabled={creating}
-                    className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-4 py-2 text-[13px] font-semibold text-white transition-colors"
+                    className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 px-4 py-2 text-[13px] font-semibold text-white transition-colors"
                   >
                     {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />}
                     {creating ? "Creating…" : "Create Schedule"}
@@ -226,7 +226,7 @@ export default function SchedulesPage() {
               <Loader2 className="h-4 w-4 animate-spin" />Loading…
             </div>
           ) : schedules.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex flex-col items-center justify-center gap-4 py-20">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex flex-col items-center justify-center gap-4 py-20">
               <CalendarClock className="h-10 w-10 text-zinc-700" />
               <div className="text-center space-y-1">
                 <p className="font-semibold text-white">No recurring scans</p>
@@ -234,7 +234,7 @@ export default function SchedulesPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
               {/* Headers */}
               <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_120px_100px_80px_40px] gap-0 px-5 py-2.5 border-b border-white/[0.05] bg-white/[0.015]">
                 {["Client / Targets", "Modules", "Interval", "Next Run", "Status", ""].map(h => (
@@ -279,7 +279,7 @@ export default function SchedulesPage() {
                         {togglingId === s.id ? (
                           <Loader2 className="h-4 w-4 animate-spin text-zinc-600" />
                         ) : s.enabled ? (
-                          <><ToggleRight className="h-5 w-5 text-emerald-400" /><span className="text-emerald-500">ON</span></>
+                          <><ToggleRight className="h-5 w-5 text-red-400" /><span className="text-red-500">ON</span></>
                         ) : (
                           <><ToggleLeft className="h-5 w-5 text-zinc-600" /><span className="text-zinc-600">OFF</span></>
                         )}
@@ -316,7 +316,7 @@ export default function SchedulesPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => handleToggle(s)} disabled={togglingId === s.id} className="transition-colors">
-                        {s.enabled ? <Play className="h-4 w-4 text-emerald-400" /> : <Pause className="h-4 w-4 text-zinc-600" />}
+                        {s.enabled ? <Play className="h-4 w-4 text-red-400" /> : <Pause className="h-4 w-4 text-zinc-600" />}
                       </button>
                       <button onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} className="text-zinc-600 hover:text-red-400 transition-colors">
                         <Trash2 className="h-4 w-4" />

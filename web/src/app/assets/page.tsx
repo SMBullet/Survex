@@ -22,7 +22,7 @@ function timeAgo(iso: string) {
 
 const TYPE_STYLE: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode }> = {
   subdomain: {
-    bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/25",
+    bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/25",
     icon: <Server className="h-3 w-3" />,
   },
   url: {
@@ -86,7 +86,7 @@ export default function AssetsPage() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#030812] bg-dots">
+      <main className="min-h-screen bg-[#0d0018] bg-dots">
         <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
 
           {/* Breadcrumb */}
@@ -99,7 +99,7 @@ export default function AssetsPage() {
           {/* Header */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#0a1628]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#160025]">
                 <Database className="h-5 w-5 text-zinc-400" />
               </div>
               <div>
@@ -121,10 +121,10 @@ export default function AssetsPage() {
           {/* Stat pills */}
           {!fetching && assets.length > 0 && (
             <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/8 px-3.5 py-2">
-                <Server className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-[13px] font-bold text-emerald-400 tabular-nums">{subCount}</span>
-                <span className="text-[11px] text-emerald-600 font-medium">Subdomains</span>
+              <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/8 px-3.5 py-2">
+                <Server className="h-3.5 w-3.5 text-red-400" />
+                <span className="text-[13px] font-bold text-red-400 tabular-nums">{subCount}</span>
+                <span className="text-[11px] text-red-600 font-medium">Subdomains</span>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/8 px-3.5 py-2">
                 <Globe className="h-3.5 w-3.5 text-blue-400" />
@@ -148,7 +148,7 @@ export default function AssetsPage() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search assets or clients…"
-                  className="w-full rounded-lg border border-white/[0.07] bg-[#0a1628]/60 pl-9 pr-4 py-2.5 text-[13px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-emerald-500/40 transition-all"
+                  className="w-full rounded-lg border border-white/[0.07] bg-[#160025]/60 pl-9 pr-4 py-2.5 text-[13px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-red-500/40 transition-all"
                 />
               </div>
               <div className="flex gap-1.5">
@@ -175,7 +175,7 @@ export default function AssetsPage() {
               <Loader2 className="h-4 w-4 animate-spin" />Loading assets…
             </div>
           ) : assets.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex flex-col items-center justify-center gap-4 py-20">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex flex-col items-center justify-center gap-4 py-20">
               <Database className="h-10 w-10 text-zinc-700" />
               <div className="text-center space-y-1">
                 <p className="font-semibold text-white">No assets yet</p>
@@ -183,11 +183,11 @@ export default function AssetsPage() {
               </div>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex items-center justify-center py-12 text-zinc-600 text-sm">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/70 flex items-center justify-center py-12 text-zinc-600 text-sm">
               No assets match your filter.
             </div>
           ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
               {/* Column headers */}
               <div className="hidden sm:grid sm:grid-cols-[2fr_90px_130px_100px_100px] gap-0 px-5 py-2.5 border-b border-white/[0.05] bg-white/[0.015]">
                 {["Asset", "Type", "Client", "First Seen", "Last Seen"].map(h => (

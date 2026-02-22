@@ -28,23 +28,23 @@ function NavItem({
         group relative flex items-center gap-2.5 rounded-md px-3 transition-all duration-150
         ${small ? "py-1.5 text-[11px]" : "py-2 text-[13px]"}
         ${active
-          ? "bg-emerald-500/10 text-emerald-400 font-medium"
+          ? "bg-red-500/10 text-red-400 font-medium"
           : accent
-            ? "text-emerald-500/70 hover:text-emerald-400 hover:bg-emerald-500/8"
+            ? "text-red-500/70 hover:text-red-400 hover:bg-red-500/8"
             : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
         }
       `}
     >
       {/* Active left-border glow */}
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[55%] w-[2px] rounded-r-full bg-emerald-400 glow-sm-emerald" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[55%] w-[2px] rounded-r-full bg-red-400 glow-sm-red" />
       )}
-      <span className={`shrink-0 ${active ? "text-emerald-400" : accent ? "text-emerald-600" : "text-zinc-600 group-hover:text-zinc-400"}`}>
+      <span className={`shrink-0 ${active ? "text-red-400" : accent ? "text-red-600" : "text-zinc-600 group-hover:text-zinc-400"}`}>
         {icon}
       </span>
       <span className="truncate flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-500/20 border border-blue-500/30 px-1 text-[10px] font-bold text-blue-400">
+        <span className="ml-auto shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500/20 border border-red-500/30 px-1 text-[10px] font-bold text-red-400">
           {badge}
         </span>
       )}
@@ -84,21 +84,21 @@ export function Sidebar() {
   const initials = user.email.slice(0, 2).toUpperCase();
 
   return (
-    <aside className="flex h-screen w-52 shrink-0 flex-col border-r border-white/[0.06] bg-[#060c18]">
+    <aside className="flex h-screen w-52 shrink-0 flex-col border-r border-white/[0.06] bg-[#0a0014]">
 
       {/* Logo */}
       <div className="flex h-14 items-center gap-3 border-b border-white/[0.06] px-4">
-        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10">
-          <Shield className="h-4 w-4 text-emerald-400" />
+        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10">
+          <Shield className="h-4 w-4 text-red-400" />
           {activeScans > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-[#060c18] bg-blue-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-ping" />
+            <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-[#0a0014] bg-amber-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
             </span>
           )}
         </div>
         <div className="flex flex-col leading-none gap-0.5">
           <span className="text-[13px] font-bold tracking-widest text-white">SURVEX</span>
-          <span className="text-[9px] tracking-widest text-emerald-500/50 font-semibold">ASM PLATFORM</span>
+          <span className="text-[9px] tracking-widest text-red-500/50 font-semibold">ASM PLATFORM</span>
         </div>
       </div>
 
@@ -135,10 +135,10 @@ export function Sidebar() {
               type="button"
               onClick={() => setCloudOpen(o => !o)}
               className={`w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-all duration-150 ${
-                sw("/cloud") ? "bg-emerald-500/10 text-emerald-400 font-medium" : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
+                sw("/cloud") ? "bg-red-500/10 text-red-400 font-medium" : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5"
               }`}
             >
-              <Cloud className={`h-3.5 w-3.5 shrink-0 ${sw("/cloud") ? "text-emerald-400" : "text-zinc-600"}`} />
+              <Cloud className={`h-3.5 w-3.5 shrink-0 ${sw("/cloud") ? "text-red-400" : "text-zinc-600"}`} />
               <span className="flex-1 text-left">Cloud Assets</span>
               <ChevronDown className={`h-3 w-3 shrink-0 text-zinc-600 transition-transform duration-200 ${cloudOpen ? "" : "-rotate-90"}`} />
             </button>
@@ -172,10 +172,10 @@ export function Sidebar() {
         {/* Status */}
         <div className="flex items-center gap-2 px-1">
           <span className="relative flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-50" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400" />
           </span>
-          <span className="text-[10px] font-bold tracking-widest text-emerald-500/60">SYSTEM ONLINE</span>
+          <span className="text-[10px] font-bold tracking-widest text-red-500/60">SYSTEM ONLINE</span>
         </div>
         {/* User row */}
         <div className="flex items-center gap-2">

@@ -85,11 +85,11 @@ function logClass(line: string): string {
   const l = line.toLowerCase();
   if (/error|failed|fail|panic/.test(l))              return "text-red-400";
   if (/warn|warning/.test(l))                         return "text-yellow-400/80";
-  if (/\[queue\] scan complete/.test(l))              return "text-emerald-300 font-semibold";
+  if (/\[queue\] scan complete/.test(l))              return "text-red-300 font-semibold";
   if (/\[queue\]/.test(l))                            return "text-blue-400";
   if (/cms-scan:|wpscan|droopescan|joomscan/.test(l)) return "text-purple-400";
   if (/techdetect:|fingerprinting tech|→ /.test(l))  return "text-violet-400";
-  if (/found \d|discover|\benabled\b|detect/.test(l)) return "text-emerald-400";
+  if (/found \d|discover|\benabled\b|detect/.test(l)) return "text-red-400";
   if (/skipped|skip|no /.test(l))                    return "text-zinc-600";
   if (/\[survex\]/.test(l))                          return "text-zinc-400";
   return "text-zinc-500";
@@ -178,7 +178,7 @@ function formatDuration(start: string, end?: string | null) {
 const STATUS_BADGE: Record<string, string> = {
   queued:    "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",
   running:   "bg-blue-500/15 text-blue-400 border-blue-500/25",
-  done:      "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+  done:      "bg-red-500/15 text-red-400 border-red-500/25",
   failed:    "bg-red-500/15 text-red-400 border-red-500/25",
   cancelled: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",
 };
@@ -381,7 +381,7 @@ export default function ScanDetailClient() {
 
   return (
     <AppShell>
-      <main className="min-h-screen bg-[#030812] bg-dots">
+      <main className="min-h-screen bg-[#0d0018] bg-dots">
         <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
 
           {/* ── Breadcrumb ─────────────────────────────────────────── */}
@@ -392,7 +392,7 @@ export default function ScanDetailClient() {
           </div>
 
           {/* ── Header ────────────────────────────────────────────── */}
-          <div className={`rounded-xl border bg-[#0a1628]/80 p-5 shadow-lg ${sevTheme.border} ${sevTheme.glow}`}>
+          <div className={`rounded-xl border bg-[#160025]/80 p-5 shadow-lg ${sevTheme.border} ${sevTheme.glow}`}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="space-y-2">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -420,7 +420,7 @@ export default function ScanDetailClient() {
                   <div className="flex items-center gap-3 pt-1">
                     <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden max-w-[200px]">
                       <div
-                        className="h-full bg-emerald-500/60 rounded-full transition-all duration-500"
+                        className="h-full bg-red-500/60 rounded-full transition-all duration-500"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -434,7 +434,7 @@ export default function ScanDetailClient() {
                   <a
                     href={api.scans.reportUrl(id)}
                     target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors"
+                    className="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-500 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     HTML Report
@@ -469,7 +469,7 @@ export default function ScanDetailClient() {
                 { icon: <AlertTriangle className="h-3.5 w-3.5" />,  label: "Findings", val: <div className="flex items-center gap-2"><span className="text-2xl font-bold text-white tabular-nums">{scan.finding_count}</span><SeverityBadge severity={scan.max_severity ?? ""} /></div> },
                 { icon: <Clock className="h-3.5 w-3.5" />,          label: "Duration", val: <span className="text-2xl font-bold text-white tabular-nums">{scan.started_at ? formatDuration(scan.started_at, scan.finished_at) : "—"}</span> },
               ].map(({ icon, label, val }) => (
-                <div key={label} className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 p-4">
+                <div key={label} className="rounded-xl border border-white/[0.07] bg-[#160025]/60 p-4">
                   <div className="flex items-center gap-1.5 text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2">
                     {icon}{label}
                   </div>
@@ -483,7 +483,7 @@ export default function ScanDetailClient() {
           <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
 
             {/* Step tracker */}
-            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 p-4 h-fit">
+            <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 p-4 h-fit">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-700 mb-4 px-1">
                 Pipeline
               </p>
@@ -493,7 +493,7 @@ export default function ScanDetailClient() {
                     {/* Icon + connector */}
                     <div className="flex flex-col items-center">
                       <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all ${
-                        step.status === "done"   ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" :
+                        step.status === "done"   ? "bg-red-500/15 text-red-400 border border-red-500/30" :
                         step.status === "active" ? "bg-blue-500/15 text-blue-400 border border-blue-500/40 ring-2 ring-blue-500/15" :
                                                    "bg-white/[0.03] text-zinc-700 border border-white/[0.06]"
                       }`}>
@@ -504,7 +504,7 @@ export default function ScanDetailClient() {
                           : <Circle className="h-2.5 w-2.5" />}
                       </div>
                       {i < steps.length - 1 && (
-                        <div className={`w-px my-1 flex-1 min-h-[14px] ${step.status === "done" ? "bg-emerald-500/25" : "bg-white/[0.05]"}`} />
+                        <div className={`w-px my-1 flex-1 min-h-[14px] ${step.status === "done" ? "bg-red-500/25" : "bg-white/[0.05]"}`} />
                       )}
                     </div>
                     {/* Label + count */}
@@ -521,7 +521,7 @@ export default function ScanDetailClient() {
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border tabular-nums ${
                             step.status === "active"
                               ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
-                              : "border-emerald-500/25 bg-emerald-500/8 text-emerald-500"
+                              : "border-red-500/25 bg-red-500/8 text-red-500"
                           }`}>
                             {step.count}
                           </span>
@@ -544,14 +544,14 @@ export default function ScanDetailClient() {
             </div>
 
             {/* Terminal */}
-            <div className="rounded-xl border border-white/[0.07] bg-[#030812] overflow-hidden flex flex-col">
+            <div className="rounded-xl border border-white/[0.07] bg-[#0d0018] overflow-hidden flex flex-col">
               {/* Terminal chrome */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#060c18]">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-[#0a0014]">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1.5">
                     <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
                     <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/60" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-zinc-600 font-mono">
                     <Terminal className="h-3 w-3" />
@@ -588,14 +588,14 @@ export default function ScanDetailClient() {
                     </div>
                   ))
                 )}
-                {wsConnected && <span className="text-emerald-400 animate-blink">█</span>}
+                {wsConnected && <span className="text-red-400 animate-blink">█</span>}
               </div>
             </div>
           </div>
 
           {/* ── Technologies panel ─────────────────────────────────── */}
           {technologies.length > 0 && (
-            <div className="rounded-xl border border-violet-500/20 bg-[#0a1628]/60 overflow-hidden">
+            <div className="rounded-xl border border-violet-500/20 bg-[#160025]/60 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.05] bg-violet-500/[0.03]">
                 <div className="flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-violet-400" />
@@ -646,7 +646,7 @@ export default function ScanDetailClient() {
                             <p className="text-[11px] text-zinc-600">
                               <span className="font-mono text-zinc-500">{a.tool}</span>
                               {" → "}
-                              <span className={a.findings > 0 ? "text-red-400 font-bold" : "text-emerald-400"}>
+                              <span className={a.findings > 0 ? "text-red-400 font-bold" : "text-red-400"}>
                                 {a.findings} finding{a.findings !== 1 ? "s" : ""}
                               </span>
                             </p>
@@ -687,7 +687,7 @@ export default function ScanDetailClient() {
             const scanName  = scan?.client ?? id;
 
             return (
-              <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/60 overflow-hidden">
+              <div className="rounded-xl border border-white/[0.07] bg-[#160025]/60 overflow-hidden">
 
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-white/[0.05] bg-white/[0.015]">
@@ -766,7 +766,7 @@ export default function ScanDetailClient() {
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       placeholder="Search title, asset, detail…"
-                      className="w-full rounded-md border border-white/[0.06] bg-[#060c18] pl-8 pr-3 py-1.5 text-[11px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-500/40 transition-all"
+                      className="w-full rounded-md border border-white/[0.06] bg-[#0a0014] pl-8 pr-3 py-1.5 text-[11px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-500/40 transition-all"
                     />
                   </div>
                   {(sevFilter || searchQuery) && (
@@ -859,7 +859,7 @@ export default function ScanDetailClient() {
 
                         {/* Expanded detail */}
                         {isOpen && (
-                          <div className="hidden sm:block mx-5 mb-1 rounded-lg border border-white/[0.06] bg-[#060c18]/80 p-4">
+                          <div className="hidden sm:block mx-5 mb-1 rounded-lg border border-white/[0.06] bg-[#0a0014]/80 p-4">
                             {f.detail && (
                               <p className="text-[11px] font-mono text-zinc-500 leading-relaxed break-all mb-3">{f.detail}</p>
                             )}
@@ -901,7 +901,7 @@ export default function ScanDetailClient() {
 
                         {/* Mobile expanded */}
                         {isOpen && (
-                          <div className="sm:hidden mx-4 mb-2 rounded-lg border border-white/[0.06] bg-[#060c18]/80 p-3">
+                          <div className="sm:hidden mx-4 mb-2 rounded-lg border border-white/[0.06] bg-[#0a0014]/80 p-3">
                             {f.detail && <p className="text-[10px] font-mono text-zinc-500 leading-relaxed break-all">{f.detail}</p>}
                             <div className="flex items-center gap-2 mt-2">
                               <button
