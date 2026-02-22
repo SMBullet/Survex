@@ -131,7 +131,7 @@ export default function NewScanPage() {
         modules,
         options: { no_subs: noSubs, passive, ports, profile: isCustom ? "" : profile, rate, threads },
       });
-      router.push(`/scans/${job.id}`);
+      router.push(`/scans/detail?id=${job.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create scan");
       setSubmitting(false);

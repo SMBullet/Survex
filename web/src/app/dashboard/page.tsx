@@ -148,7 +148,7 @@ export default function Dashboard() {
                     <tr
                       key={scan.id}
                       className={`border-b border-border/50 cursor-pointer hover:bg-accent/30 transition-colors ${i === scans.length - 1 ? "border-b-0" : ""}`}
-                      onClick={() => router.push(`/scans/${scan.id}`)}
+                      onClick={() => router.push(`/scans/detail?id=${scan.id}`)}
                     >
                       <td className="px-4 py-3 font-medium">{scan.client}</td>
                       <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate font-mono text-xs">{scan.targets}</td>

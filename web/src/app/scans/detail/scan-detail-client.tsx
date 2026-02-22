@@ -1,14 +1,7 @@
 "use client";
 
-// Required for Next.js static export (output: 'export').
-// Scan IDs are unknown at build time; the Go server SPA fallback serves
-// index.html for any /scans/* URL and the client-side router handles it.
-export async function generateStaticParams() {
-  return [];
-}
-
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api, ScanJob } from "@/lib/api";
 import { Nav } from "@/components/nav";
@@ -18,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ExternalLink, Square, RefreshCw, Clock, Target,
   Layers, CheckCircle2, Circle, Loader2, XCircle,
-  AlertTriangle, Activity, Shield, Globe, Server,
+  AlertTriangle,
 } from "lucide-react";
 
 // ── Step detection ────────────────────────────────────────────────────────────
@@ -67,13 +60,13 @@ function buildSteps(logs: string[]): Step[] {
 
 function logClass(line: string): string {
   const l = line.toLowerCase();
-  if (/error|failed|fail|panic/.test(l))           return "text-red-400";
-  if (/warn|warning/.test(l))                       return "text-yellow-400";
-  if (/\[queue\] scan complete/.test(l))            return "text-emerald-300 font-semibold";
-  if (/\[queue\]/.test(l))                          return "text-blue-400";
+  if (/error|failed|fail|panic/.test(l))              return "text-red-400";
+  if (/warn|warning/.test(l))                          return "text-yellow-400";
+  if (/\[queue\] scan complete/.test(l))               return "text-emerald-300 font-semibold";
+  if (/\[queue\]/.test(l))                             return "text-blue-400";
   if (/found \d|discover|\benabled\b|detect/.test(l)) return "text-emerald-400";
-  if (/skipped|skip|no /.test(l))                  return "text-zinc-500";
-  if (/\[survex\]/.test(l))                         return "text-zinc-300";
+  if (/skipped|skip|no /.test(l))                     return "text-zinc-500";
+  if (/\[survex\]/.test(l))                            return "text-zinc-300";
   return "text-zinc-400";
 }
 
@@ -88,32 +81,36 @@ const statusStyle: Record<string, string> = {
 };
 
 function formatDuration(start: string, end?: string) {
-  const sec = Math.floor((((end ? new Date(end) : new Date()).getTime()) - new Date(start).getTime()) / 1000);
+  const sec = Math.floor(
+    (((end ? new Date(end) : new Date()).getTime()) - new Date(start).getTime()) / 1000
+  );
   if (sec < 60) return `${sec}s`;
   return `${Math.floor(sec / 60)}m ${sec % 60}s`;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function ScanDetailPage() {
-  const { id } = useParams<{ id: string }>();
+export default function ScanDetailClient() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") ?? "";
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [scan, setScan]             = useState<ScanJob | null>(null);
-  const [logs, setLogs]             = useState<string[]>([]);
+  const [scan, setScan]               = useState<ScanJob | null>(null);
+  const [logs, setLogs]               = useState<string[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const [cancelling, setCancelling]   = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const wsRef  = useRef<WebSocket | null>(null);
 
   const fetchScan = useCallback(async () => {
+    if (!id) return null;
     try { const d = await api.scans.get(id); setScan(d); return d; }
     catch { return null; }
   }, [id]);
 
   const connectWs = useCallback(() => {
-    if (wsRef.current) return;
+    if (!id || wsRef.current) return;
     const ws = new WebSocket(api.scans.logsWsUrl(id));
     wsRef.current = ws;
     ws.onopen    = () => setWsConnected(true);
@@ -125,9 +122,9 @@ export default function ScanDetailPage() {
   useEffect(() => { if (!loading && !user) router.replace("/login"); }, [user, loading, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !id) return;
     fetchScan().then(() => connectWs());
-  }, [user, fetchScan, connectWs]);
+  }, [user, id, fetchScan, connectWs]);
 
   useEffect(() => {
     if (!scan) return;
@@ -158,7 +155,7 @@ export default function ScanDetailPage() {
 
   if (loading || !user) return null;
 
-  const steps  = buildSteps(logs);
+  const steps   = buildSteps(logs);
   const isActive = scan?.status === "queued" || scan?.status === "running";
 
   return (
@@ -209,10 +206,10 @@ export default function ScanDetailPage() {
         {scan && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { icon: <Target className="h-3.5 w-3.5" />,       label: "Target",   value: <span className="font-mono text-xs truncate block">{scan.targets}</span> },
-              { icon: <Layers className="h-3.5 w-3.5" />,       label: "Modules",  value: <span className="font-mono text-xs truncate block">{scan.modules || "(profile)"}</span> },
-              { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: "Findings", value: <span className="flex items-center gap-2 text-2xl font-bold">{scan.finding_count} <SeverityBadge severity={scan.max_severity ?? ""} /></span> },
-              { icon: <Clock className="h-3.5 w-3.5" />,         label: "Duration", value: <span className="text-2xl font-bold">{scan.started_at ? formatDuration(scan.started_at, scan.finished_at) : "—"}</span> },
+              { icon: <Target className="h-3.5 w-3.5" />,        label: "Target",   value: <span className="font-mono text-xs truncate block">{scan.targets}</span> },
+              { icon: <Layers className="h-3.5 w-3.5" />,        label: "Modules",  value: <span className="font-mono text-xs truncate block">{scan.modules || "(profile)"}</span> },
+              { icon: <AlertTriangle className="h-3.5 w-3.5" />,  label: "Findings", value: <span className="flex items-center gap-2 text-2xl font-bold">{scan.finding_count} <SeverityBadge severity={scan.max_severity ?? ""} /></span> },
+              { icon: <Clock className="h-3.5 w-3.5" />,          label: "Duration", value: <span className="text-2xl font-bold">{scan.started_at ? formatDuration(scan.started_at, scan.finished_at) : "—"}</span> },
             ].map(({ icon, label, value }) => (
               <div key={label} className="rounded-xl border border-border bg-card p-4 overflow-hidden">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">
@@ -265,7 +262,6 @@ export default function ScanDetailPage() {
 
           {/* Terminal */}
           <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
-            {/* Terminal title bar */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-900/50">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
@@ -285,8 +281,6 @@ export default function ScanDetailPage() {
                 )}
               </div>
             </div>
-
-            {/* Log output */}
             <div
               ref={logRef}
               className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-[1.6] bg-zinc-950"
