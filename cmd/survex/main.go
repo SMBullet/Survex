@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -848,6 +849,16 @@ func runWatch(cmd *cobra.Command, args []string) error {
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
+	// Resolve the frontend dir to an absolute path so Fiber's file serving
+	// works correctly regardless of the working directory.
+	frontendDir := flagServeFrontend
+	if frontendDir != "" {
+		abs, err := filepath.Abs(frontendDir)
+		if err == nil {
+			frontendDir = abs
+		}
+	}
+
 	database, err := db.Open(flagServeDB)
 	if err != nil {
 		return fmt.Errorf("opening database: %w", err)
@@ -856,7 +867,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	q := queue.New(database)
 
-	app := api.New(database, q, flagServeFrontend)
+	app := api.New(database, q, frontendDir)
 
 	// Graceful shutdown on Ctrl+C / SIGTERM
 	sigCh := make(chan os.Signal, 1)
@@ -869,8 +880,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Survex web UI  → http://%s\n", flagServeAddr)
 	fmt.Printf("Database       : %s\n", flagServeDB)
-	if flagServeFrontend != "" {
-		fmt.Printf("Frontend       : %s\n", flagServeFrontend)
+	if frontendDir != "" {
+		fmt.Printf("Frontend       : %s\n", frontendDir)
 	} else {
 		fmt.Printf("Frontend       : API-only mode (no frontend dir set)\n")
 	}

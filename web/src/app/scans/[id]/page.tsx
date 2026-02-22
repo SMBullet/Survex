@@ -1,5 +1,12 @@
 "use client";
 
+// Required for Next.js static export (output: 'export').
+// Scan IDs are unknown at build time; the Go server SPA fallback serves
+// index.html for any /scans/* URL and the client-side router handles it.
+export async function generateStaticParams() {
+  return [];
+}
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
