@@ -29,7 +29,7 @@ func New(database *db.DB, q *queue.Queue, frontendDir string) *fiber.App {
 		Format: "[${time}] ${status} ${method} ${path} (${latency})\n",
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:3000,http://localhost:3001,http://localhost:8080",
+		AllowOrigins: "http://localhost:3000,http://localhost:3001,http://localhost:8080,http://127.0.0.1:8080,http://127.0.0.1:3000,http://127.0.0.1:3001",
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders: "Origin,Content-Type,Authorization",
 	}))
