@@ -94,7 +94,42 @@ case "$MODE" in
     ;;
 esac
 
-# ── 4. System tools reminder ──────────────────────────────────────────────────
+# ── 4. Python tools (prowler) ─────────────────────────────────────────────────
+section "Python tools"
+
+# prowler is a pip package and cannot be auto-installed by 'survex install'.
+# Install it here so cloud configuration reviews work out of the box.
+_pip_install_prowler() {
+  if command -v pipx &>/dev/null; then
+    pipx install prowler --quiet
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "prowler installed via pipx."
+  elif pip3 install prowler --quiet --break-system-packages 2>/dev/null; then
+    ok "prowler installed."
+  elif pip3 install prowler --quiet --user 2>/dev/null; then
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "prowler installed (user scheme)."
+  else
+    warn "Could not install prowler automatically."
+    warn "Install manually: pip install prowler"
+  fi
+}
+
+if command -v pip3 &>/dev/null || command -v pip &>/dev/null; then
+  PIP_CMD="pip3"; command -v pip3 &>/dev/null || PIP_CMD="pip"
+  if $PIP_CMD show prowler &>/dev/null 2>&1 || command -v prowler &>/dev/null; then
+    PROWLER_VER="$($PIP_CMD show prowler 2>/dev/null | grep '^Version' | awk '{print $2}')"
+    ok "prowler ${PROWLER_VER:-already} installed."
+  else
+    warn "prowler not found — installing (multi-cloud security audit)…"
+    _pip_install_prowler
+  fi
+else
+  warn "pip not found — skipping prowler install."
+  warn "Install Python 3 + pip, then run: pip install prowler"
+fi
+
+# ── 5. System tools reminder ──────────────────────────────────────────────────
 section "System tools (require manual install)"
 
 NMAP_OK=false
@@ -115,11 +150,11 @@ else
   ok "nmap: $(nmap --version | head -1)"
 fi
 
-# ── 5. Final module overview ──────────────────────────────────────────────────
+# ── 6. Final module overview ──────────────────────────────────────────────────
 section "Module status"
 "$SURVEX_BIN" modules
 
-# ── 6. Quick-start hint ───────────────────────────────────────────────────────
+# ── 7. Quick-start hint ───────────────────────────────────────────────────────
 echo ""
 ok "Bootstrap complete."
 echo ""

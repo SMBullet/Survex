@@ -219,9 +219,9 @@ else
 fi
 
 # =============================================================================
-# Step 5 — Python 3 + pip3 + droopescan
+# Step 5 — Python 3 + pip3 + droopescan + prowler
 # =============================================================================
-section "Step 5: Python 3 + droopescan"
+section "Step 5: Python 3 + droopescan + prowler"
 
 if ! has python3; then
   info "Installing Python 3…"
@@ -233,6 +233,23 @@ if ! has pip3; then
   if [ "$DISTRO" = "apt" ]; then apt_install python3-pip; else brew_install python3; fi
 fi
 
+# Helper: install a pip package (tries pipx → pip --break-system-packages → pip --user)
+pip_install_pkg() {
+  local pkg="$1"
+  local desc="$2"
+  if has pipx; then
+    pipx install "$pkg" --quiet
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "$desc installed via pipx."
+  elif pip3 install "$pkg" --quiet --break-system-packages 2>/dev/null; then
+    ok "$desc installed."
+  else
+    pip3 install "$pkg" --quiet --user
+    export PATH="$HOME/.local/bin:$PATH"
+    ok "$desc installed (user scheme)."
+  fi
+}
+
 if pip3 show droopescan &>/dev/null 2>&1 || has droopescan; then
   DROOP_VER="$(pip3 show droopescan 2>/dev/null | grep '^Version' | awk '{print $2}')"
   ok "droopescan ${DROOP_VER:-already} installed."
@@ -241,20 +258,15 @@ else
   # Ubuntu 22.04+ / Debian 12+ enforce PEP 668 — pip installs outside a venv
   # are blocked unless --break-system-packages is passed. This is intentional
   # for a dedicated pentest machine; it does not harm the system.
-  # Try pipx first (cleanest), then pip with the override flag.
-  if has pipx; then
-    pipx install droopescan --quiet
-    # pipx installs into ~/.local/bin — make sure it is on PATH
-    export PATH="$HOME/.local/bin:$PATH"
-    ok "droopescan installed via pipx."
-  elif pip3 install droopescan --quiet --break-system-packages 2>/dev/null; then
-    ok "droopescan installed."
-  else
-    # Last resort: user-scheme install (no sudo, no venv)
-    pip3 install droopescan --quiet --user
-    export PATH="$HOME/.local/bin:$PATH"
-    ok "droopescan installed (user scheme)."
-  fi
+  pip_install_pkg droopescan "droopescan"
+fi
+
+if pip3 show prowler &>/dev/null 2>&1 || has prowler; then
+  PROWLER_VER="$(pip3 show prowler 2>/dev/null | grep '^Version' | awk '{print $2}')"
+  ok "prowler ${PROWLER_VER:-already} installed."
+else
+  info "Installing prowler (multi-cloud security posture audit — AWS/Azure/GCP)…"
+  pip_install_pkg prowler "prowler"
 fi
 
 # =============================================================================
@@ -314,7 +326,7 @@ ok "Survex binary built: $SCRIPT_DIR/survex"
 section "Step 8: Install Go tools (via ./survex install)"
 
 info "Running ./survex install — this installs subfinder, amass, httpx,"
-info "gau, katana, gowitness, nuclei, ffuf, dalfox, and fixes PATH…"
+info "gau, katana, gowitness, nuclei, ffuf, dalfox, cloudlist, and fixes PATH…"
 echo ""
 
 ./survex install
@@ -368,9 +380,9 @@ fi
 section "All done!"
 echo ""
 echo -e "${BOLD}Installed components:${RESET}"
-echo -e "  ${GREEN}✓${RESET} Go tools       (subfinder, amass, httpx, gau, katana, gowitness, nuclei, ffuf, dalfox)"
+echo -e "  ${GREEN}✓${RESET} Go tools       (subfinder, amass, httpx, gau, katana, gowitness, nuclei, ffuf, dalfox, cloudlist)"
 echo -e "  ${GREEN}✓${RESET} System tools   (nmap, sqlmap)"
-echo -e "  ${GREEN}✓${RESET} Python tools   (droopescan)"
+echo -e "  ${GREEN}✓${RESET} Python tools   (droopescan, prowler)"
 echo -e "  ${GREEN}✓${RESET} Ruby tools     (wpscan)"
 echo -e "  ${GREEN}✓${RESET} Survex binary  → ./survex"
 echo -e "  ${GREEN}✓${RESET} Web UI         → web/out/"

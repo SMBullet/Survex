@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { api, CloudScanJob, CloudFinding } from "@/lib/api";
+import { api, CloudScanJob, CloudFinding, CloudAsset } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import {
   Cpu, ChevronRight, Key, Shield, AlertCircle,
-  Loader2, Play, Trash2, CheckCircle, Clock, XCircle,
+  Loader2, Play, Trash2, CheckCircle, Clock, XCircle, Globe,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -31,6 +31,36 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`flex items-center gap-1 text-xs font-medium ${s.cls}`}>
       {s.icon}{status}
     </span>
+  );
+}
+
+function AssetsTable({ assets }: { assets: CloudAsset[] }) {
+  if (!assets.length) return null;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="border-b border-border text-left text-muted-foreground/60 text-[11px] uppercase tracking-widest">
+            <th className="pb-2 pr-3 font-semibold">Host / DNS</th>
+            <th className="pb-2 pr-3 font-semibold">IP</th>
+            <th className="pb-2 font-semibold">Visibility</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {assets.map((a, i) => (
+            <tr key={i} className="hover:bg-muted/20 transition-colors">
+              <td className="py-2 pr-3 font-mono text-foreground/80 max-w-[260px] truncate" title={a.host}>{a.host || "—"}</td>
+              <td className="py-2 pr-3 font-mono text-muted-foreground/70">{a.ip || "—"}</td>
+              <td className="py-2">
+                <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold uppercase ${a.public ? "text-violet-400 bg-violet-500/10 border-violet-500/20" : "text-muted-foreground bg-muted/30 border-border"}`}>
+                  {a.public ? "public" : "private"}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -246,42 +276,56 @@ export default function GCPPage() {
           </div>
 
           {currentJob && (
-            <section className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
-                <div className="flex items-center gap-2.5">
-                  <Shield className="h-4 w-4 text-violet-400" />
-                  <span className="text-[13px] font-semibold text-foreground">Scan Results</span>
-                  {currentJob.result?.account_id && (
-                    <span className="text-[11px] text-muted-foreground/50 font-mono">project: {currentJob.result.account_id}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-4">
-                  <StatusBadge status={currentJob.status} />
-                  {currentJob.result?.summary && (
-                    <div className="flex items-center gap-2 text-[11px]">
-                      {["critical","high","medium","low","info"].map(sev =>
-                        (currentJob.result!.summary[sev] ?? 0) > 0 ? (
-                          <span key={sev} className={`rounded border px-1.5 py-0.5 font-semibold uppercase ${SEVERITY_COLORS[sev]}`}>
-                            {currentJob.result!.summary[sev]} {sev}
-                          </span>
-                        ) : null
-                      )}
+            <>
+              {currentJob.result?.assets && currentJob.result.assets.length > 0 && (
+                <section className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Globe className="h-4 w-4 text-violet-400" />
+                      <span className="text-[13px] font-semibold text-foreground">Discovered Assets</span>
                     </div>
-                  )}
+                    <span className="text-[11px] text-muted-foreground/60">{currentJob.result.assets.length} assets via cloudlist</span>
+                  </div>
+                  <div className="p-5"><AssetsTable assets={currentJob.result.assets} /></div>
+                </section>
+              )}
+              <section className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <Shield className="h-4 w-4 text-violet-400" />
+                    <span className="text-[13px] font-semibold text-foreground">Security Findings</span>
+                    {currentJob.result?.account_id && (
+                      <span className="text-[11px] text-muted-foreground/50 font-mono">project: {currentJob.result.account_id}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <StatusBadge status={currentJob.status} />
+                    {currentJob.result?.summary && (
+                      <div className="flex items-center gap-2 text-[11px]">
+                        {["critical","high","medium","low","info"].map(sev =>
+                          (currentJob.result!.summary[sev] ?? 0) > 0 ? (
+                            <span key={sev} className={`rounded border px-1.5 py-0.5 font-semibold uppercase ${SEVERITY_COLORS[sev]}`}>
+                              {currentJob.result!.summary[sev]} {sev}
+                            </span>
+                          ) : null
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="p-5">
-                {currentJob.status === "running" || currentJob.status === "queued" ? (
-                  <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Scanning GCP project…</span>
-                  </div>
-                ) : currentJob.status === "failed" ? (
-                  <div className="flex items-center gap-2 text-red-400 text-sm py-4">
-                    <XCircle className="h-4 w-4 shrink-0" />{currentJob.error ?? "Scan failed"}
-                  </div>
-                ) : currentJob.result ? <FindingsTable findings={currentJob.result.findings} /> : null}
-              </div>
-            </section>
+                <div className="p-5">
+                  {currentJob.status === "running" || currentJob.status === "queued" ? (
+                    <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Running cloudlist + prowler against GCP…</span>
+                    </div>
+                  ) : currentJob.status === "failed" ? (
+                    <div className="flex items-center gap-2 text-red-400 text-sm py-4">
+                      <XCircle className="h-4 w-4 shrink-0" />{currentJob.error ?? "Scan failed"}
+                    </div>
+                  ) : currentJob.result ? <FindingsTable findings={currentJob.result.findings} /> : null}
+                </div>
+              </section>
+            </>
           )}
 
           {recentScans.length > 0 && !currentJob && (

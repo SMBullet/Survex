@@ -13,11 +13,20 @@ type CloudFinding struct {
 	Remediation string `json:"remediation"` // suggested fix
 }
 
+// CloudAsset is a cloud resource discovered by cloudlist (IP, hostname, instance, etc.).
+type CloudAsset struct {
+	Provider string `json:"provider"`          // aws|azure|gcp
+	IP       string `json:"ip,omitempty"`       // IPv4 address
+	Host     string `json:"host,omitempty"`     // hostname or DNS name
+	Public   bool   `json:"public"`             // true if publicly reachable
+}
+
 // CloudScanResult is the aggregated result of a cloud/SCM config review scan.
 type CloudScanResult struct {
 	Provider  string         `json:"provider"`
 	AccountID string         `json:"account_id,omitempty"` // AWS account / Azure subscription / GCP project
 	ScanID    string         `json:"scan_id"`
+	Assets    []CloudAsset   `json:"assets,omitempty"`   // discovered by cloudlist
 	Findings  []CloudFinding `json:"findings"`
 	Summary   map[string]int `json:"summary"`    // severity → count
 	ChecksRun int            `json:"checks_run"` // total checks attempted

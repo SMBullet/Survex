@@ -19,6 +19,7 @@ const (
 	KindSystem                  // installed via apt / brew / choco
 	KindBuiltIn                 // no binary required (pure Go)
 	KindAPI                     // no binary; just needs an API key
+	KindPipTool                 // installed via pip (Python)
 )
 
 // ToolDef describes one external dependency used by Survex.
@@ -31,6 +32,7 @@ type ToolDef struct {
 	AptPackage  string // apt package name (for KindSystem on Linux)
 	BrewFormula string // homebrew formula (for KindSystem on macOS)
 	WinChoco    string // chocolatey package (for KindSystem on Windows)
+	PipPackage  string // pip package name (for KindPipTool)
 	VersionFlag string // flag or subcommand to print version (default: -version)
 	// PDTool: when true, verify the version output contains "projectdiscovery"
 	// to guard against same-named system packages (e.g., Python httpx on Kali Linux).
@@ -218,6 +220,22 @@ var AllTools = []ToolDef{
 		Kind:        KindBuiltIn,
 		Description: "API endpoint discovery — hunts Swagger/OpenAPI specs, actuator endpoints, WSDL",
 	},
+	{
+		Name:        "cloudlist",
+		Binary:      "cloudlist",
+		Kind:        KindGoTool,
+		Description: "Cloud asset discovery — enumerates IPs, hostnames, instances across AWS/Azure/GCP/DO/etc.",
+		GoInstall:   "github.com/projectdiscovery/cloudlist/cmd/cloudlist@latest",
+		VersionFlag: "-version",
+	},
+	{
+		Name:        "prowler",
+		Binary:      "prowler",
+		Kind:        KindPipTool,
+		Description: "Cloud security posture audit — 500+ checks for AWS/Azure/GCP misconfigurations",
+		PipPackage:  "prowler",
+		VersionFlag: "-v",
+	},
 }
 
 // ─── Status Checking ───────────────────────────────────────────────────────────
@@ -247,6 +265,18 @@ func CheckStatus(def ToolDef) ToolStatus {
 		return st
 	case KindAPI:
 		st.State = "needs-key"
+		return st
+	case KindPipTool:
+		// pip tools are treated like system tools: just check PATH + ~/.local/bin
+		candidates := gatherCandidatePaths(def.Binary)
+		if len(candidates) == 0 {
+			st.State = "missing"
+			return st
+		}
+		out, _ := queryToolVersion(candidates[0], def.VersionFlag)
+		st.State = "ok"
+		st.Path = candidates[0]
+		st.Version = versionFirstLine(out)
 		return st
 	}
 
@@ -378,6 +408,10 @@ func RunInstall(filter []string, doInstall bool, logFn func(string)) []InstallRe
 			if !doInstall {
 				res.Action = "missing"
 				res.Message = st.InstallHint
+			} else if def.Kind == KindPipTool {
+				// Cannot auto-install Python packages from Go.
+				res.Action = "missing"
+				res.Message = "manual install required: " + st.InstallHint
 			} else if def.Kind == KindGoTool {
 				logFn(fmt.Sprintf("[*] Installing %s ...", def.Name))
 				if err := execGoInstall(def, logFn); err != nil {
@@ -523,7 +557,15 @@ func gatherCandidatePaths(binary string) []string {
 		add(filepath.Join(gopath, "bin", binary))
 	}
 
-	// 3. Whatever PATH resolution produces (may include /usr/bin, etc.).
+	// 3. ~/.local/bin — where pip installs scripts for non-root users.
+	if home, homeErr := os.UserHomeDir(); homeErr == nil {
+		add(filepath.Join(home, ".local", "bin", binary))
+		if runtime.GOOS == "windows" {
+			add(filepath.Join(home, ".local", "bin", binary+".exe"))
+		}
+	}
+
+	// 4. Whatever PATH resolution produces (may include /usr/bin, etc.).
 	if p, lookErr := exec.LookPath(binary); lookErr == nil {
 		add(p)
 	}
@@ -637,6 +679,8 @@ func installToolHint(def ToolDef) string {
 		case "windows":
 			return "choco install " + def.WinChoco
 		}
+	case KindPipTool:
+		return "pip install " + def.PipPackage
 	case KindAPI:
 		return "set --shodan-key or SHODAN_API_KEY env var"
 	}

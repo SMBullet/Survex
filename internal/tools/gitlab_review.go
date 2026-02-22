@@ -13,6 +13,14 @@ import (
 	"github.com/SMBullet/Survex/internal/models"
 )
 
+// secretEnvKeywords are substrings that indicate a CI/CD variable likely holds a secret.
+var secretEnvKeywords = []string{
+	"SECRET", "KEY", "PASSWORD", "TOKEN", "PASSWD", "CREDENTIAL", "API_KEY",
+}
+
+// gcpSecretEnvKeywords is an alias kept for backward compatibility within this package.
+var gcpSecretEnvKeywords = secretEnvKeywords
+
 // GitLabReviewCreds holds credentials and targeting options for a GitLab config review.
 type GitLabReviewCreds struct {
 	Token string // Personal or Group access token (PRIVATE-TOKEN header)

@@ -51,7 +51,6 @@ func (q *CloudQueue) process(ctx context.Context, id string) {
 		return
 	}
 
-	// Mark as running
 	now := time.Now()
 	if err := q.db.UpdateCloudScanStatus(id, "running", &now, nil); err != nil {
 		log.Printf("[cloud-queue] failed to mark job %s running: %v", id, err)
@@ -60,14 +59,20 @@ func (q *CloudQueue) process(ctx context.Context, id string) {
 
 	log.Printf("[cloud-queue] starting %s scan (job %s)", row.Provider, id)
 
-	// Parse options — contains credentials + scan config
 	var opts map[string]interface{}
 	if err := json.Unmarshal([]byte(row.OptionsJSON), &opts); err != nil {
 		q.fail(id, "failed to parse scan options: "+err.Error())
 		return
 	}
 
-	// Simple logger that writes to the server log (can be extended with WS streaming)
+	// Convert interface{} map to string map for tool functions.
+	creds := make(map[string]string, len(opts))
+	for k, v := range opts {
+		if s, ok := v.(string); ok {
+			creds[k] = s
+		}
+	}
+
 	logFn := func(msg string) {
 		log.Printf("[cloud-queue][%s] %s", id, msg)
 	}
@@ -76,66 +81,54 @@ func (q *CloudQueue) process(ctx context.Context, id string) {
 	var runErr error
 
 	switch row.Provider {
-	case "aws":
-		creds := tools.AWSCreds{
-			AccessKeyID:     strField(opts, "access_key_id"),
-			SecretAccessKey: strField(opts, "secret_access_key"),
-			SessionToken:    strField(opts, "session_token"),
-			RoleARN:         strField(opts, "role_arn"),
-			Region:          strField(opts, "region"),
-		}
-		findings, accountID, err := tools.RunAWSReview(ctx, creds, logFn)
-		runErr = err
-		if err == nil {
-			result = buildCloudResult(id, "aws", accountID, findings)
+
+	// ── Cloud providers: asset discovery (cloudlist) + security audit (prowler) ──
+	case "aws", "azure", "gcp":
+		provider := row.Provider
+
+		// Asset discovery via cloudlist (optional — non-fatal if not installed).
+		assets, clErr := tools.RunCloudlist(ctx, provider, creds, logFn)
+		if clErr != nil {
+			logFn("cloudlist unavailable: " + clErr.Error())
 		}
 
-	case "azure":
-		creds := tools.AzureCreds{
-			TenantID:       strField(opts, "tenant_id"),
-			ClientID:       strField(opts, "client_id"),
-			ClientSecret:   strField(opts, "client_secret"),
-			SubscriptionID: strField(opts, "subscription_id"),
-		}
-		findings, err := tools.RunAzureReview(ctx, creds, logFn)
-		runErr = err
-		if err == nil {
-			result = buildCloudResult(id, "azure", creds.SubscriptionID, findings)
+		// Security audit via prowler (optional — non-fatal if not installed).
+		findings, accountID, prErr := tools.RunProwler(ctx, provider, creds, logFn)
+		if prErr != nil {
+			logFn("prowler unavailable: " + prErr.Error())
 		}
 
-	case "gcp":
-		creds := tools.GCPCreds{
-			ServiceAccountJSON: strField(opts, "service_account_json"),
-			ProjectID:          strField(opts, "project_id"),
-		}
-		findings, projectID, err := tools.RunGCPReview(ctx, creds, logFn)
-		runErr = err
-		if err == nil {
-			result = buildCloudResult(id, "gcp", projectID, findings)
+		// Fail the job only if both tools are missing.
+		if clErr != nil && prErr != nil {
+			runErr = clErr // surface the first error
+			break
 		}
 
+		result = buildCloudResult(id, provider, accountID, findings, assets)
+
+	// ── SCM providers: custom Go implementations ────────────────────────────────
 	case "github":
-		creds := tools.GitHubReviewCreds{
-			Token: strField(opts, "token"),
-			Org:   strField(opts, "org"),
-			Repos: strField(opts, "repos"),
+		crd := tools.GitHubReviewCreds{
+			Token: creds["token"],
+			Org:   creds["org"],
+			Repos: creds["repos"],
 		}
-		findings, err := tools.RunGitHubReview(ctx, creds, logFn)
+		findings, err := tools.RunGitHubReview(ctx, crd, logFn)
 		runErr = err
 		if err == nil {
-			result = buildCloudResult(id, "github", creds.Org, findings)
+			result = buildCloudResult(id, "github", crd.Org, findings, nil)
 		}
 
 	case "gitlab":
-		creds := tools.GitLabReviewCreds{
-			Token: strField(opts, "token"),
-			URL:   strField(opts, "url"),
-			Group: strField(opts, "group"),
+		crd := tools.GitLabReviewCreds{
+			Token: creds["token"],
+			URL:   creds["url"],
+			Group: creds["group"],
 		}
-		findings, err := tools.RunGitLabReview(ctx, creds, logFn)
+		findings, err := tools.RunGitLabReview(ctx, crd, logFn)
 		runErr = err
 		if err == nil {
-			result = buildCloudResult(id, "gitlab", creds.Group, findings)
+			result = buildCloudResult(id, "gitlab", crd.Group, findings, nil)
 		}
 
 	default:
@@ -148,7 +141,6 @@ func (q *CloudQueue) process(ctx context.Context, id string) {
 		return
 	}
 
-	// Persist result
 	b, err := json.Marshal(result)
 	if err != nil {
 		q.fail(id, "marshal result: "+err.Error())
@@ -157,7 +149,7 @@ func (q *CloudQueue) process(ctx context.Context, id string) {
 	if err := q.db.UpdateCloudScanResult(id, string(b)); err != nil {
 		log.Printf("[cloud-queue] failed to save result for job %s: %v", id, err)
 	}
-	log.Printf("[cloud-queue] job %s done — %d findings", id, len(result.Findings))
+	log.Printf("[cloud-queue] job %s done — %d assets, %d findings", id, len(result.Assets), len(result.Findings))
 }
 
 func (q *CloudQueue) fail(id, msg string) {
@@ -165,9 +157,12 @@ func (q *CloudQueue) fail(id, msg string) {
 	_ = q.db.UpdateCloudScanError(id, msg)
 }
 
-func buildCloudResult(scanID, provider, accountID string, findings []models.CloudFinding) *models.CloudScanResult {
+func buildCloudResult(scanID, provider, accountID string, findings []models.CloudFinding, assets []models.CloudAsset) *models.CloudScanResult {
 	if findings == nil {
 		findings = []models.CloudFinding{}
+	}
+	if assets == nil {
+		assets = []models.CloudAsset{}
 	}
 	summary := map[string]int{
 		"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0,
@@ -179,17 +174,9 @@ func buildCloudResult(scanID, provider, accountID string, findings []models.Clou
 		Provider:  provider,
 		AccountID: accountID,
 		ScanID:    scanID,
+		Assets:    assets,
 		Findings:  findings,
 		Summary:   summary,
-		ChecksRun: len(findings), // approximate
+		ChecksRun: len(findings),
 	}
-}
-
-func strField(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return ""
 }

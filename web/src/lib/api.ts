@@ -92,10 +92,18 @@ export interface CloudFinding {
   remediation: string;
 }
 
+export interface CloudAsset {
+  provider: string;  // aws | azure | gcp
+  ip?: string;
+  host?: string;
+  public: boolean;
+}
+
 export interface CloudScanResult {
   provider: string;
   account_id?: string;
   scan_id: string;
+  assets?: CloudAsset[];
   findings: CloudFinding[];
   summary: Record<string, number>;
   checks_run: number;
