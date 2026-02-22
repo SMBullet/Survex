@@ -85,22 +85,38 @@ func (q *CloudQueue) process(ctx context.Context, id string) {
 	// ── Cloud providers: asset discovery (cloudlist) + security audit (prowler) ──
 	case "aws", "azure", "gcp":
 		provider := row.Provider
+		mode := creds["mode"] // "discovery" | "audit" | "" / "both"
 
-		// Asset discovery via cloudlist (optional — non-fatal if not installed).
-		assets, clErr := tools.RunCloudlist(ctx, provider, creds, logFn)
-		if clErr != nil {
-			logFn("cloudlist unavailable: " + clErr.Error())
+		var assets []models.CloudAsset
+		var findings []models.CloudFinding
+		var accountID string
+		var clErr, prErr error
+
+		// Asset discovery via cloudlist.
+		if mode != "audit" {
+			assets, clErr = tools.RunCloudlist(ctx, provider, creds, logFn)
+			if clErr != nil {
+				logFn("cloudlist unavailable: " + clErr.Error())
+			}
 		}
 
-		// Security audit via prowler (optional — non-fatal if not installed).
-		findings, accountID, prErr := tools.RunProwler(ctx, provider, creds, logFn)
-		if prErr != nil {
-			logFn("prowler unavailable: " + prErr.Error())
+		// Security audit via prowler.
+		if mode != "discovery" {
+			findings, accountID, prErr = tools.RunProwler(ctx, provider, creds, logFn)
+			if prErr != nil {
+				logFn("prowler unavailable: " + prErr.Error())
+			}
 		}
 
-		// Fail the job only if both tools are missing.
-		if clErr != nil && prErr != nil {
-			runErr = clErr // surface the first error
+		// Fail only if every requested tool failed.
+		allFailed := (mode == "discovery" && clErr != nil) ||
+			(mode == "audit" && prErr != nil) ||
+			(mode != "discovery" && mode != "audit" && clErr != nil && prErr != nil)
+		if allFailed {
+			runErr = clErr
+			if runErr == nil {
+				runErr = prErr
+			}
 			break
 		}
 

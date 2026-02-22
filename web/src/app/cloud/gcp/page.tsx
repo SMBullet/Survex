@@ -7,9 +7,11 @@ import { api, CloudScanJob, CloudFinding, CloudAsset } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import {
   Cpu, ChevronRight, Key, Shield, AlertCircle,
-  Loader2, Play, Trash2, CheckCircle, Clock, XCircle, Globe,
+  Loader2, Play, Trash2, CheckCircle, Clock, XCircle, Globe, ScanSearch,
 } from "lucide-react";
 import Link from "next/link";
+
+type ScanMode = "both" | "discovery" | "audit";
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: "text-red-400 bg-red-500/10 border-red-500/20",
@@ -35,7 +37,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function AssetsTable({ assets }: { assets: CloudAsset[] }) {
-  if (!assets.length) return null;
+  if (!assets.length) return (
+    <p className="text-center text-muted-foreground text-sm py-8">No assets discovered.</p>
+  );
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[12px]">
@@ -103,10 +107,75 @@ function FindingsTable({ findings }: { findings: CloudFinding[] }) {
   );
 }
 
+function JobResults({ job, mode }: { job: CloudScanJob; mode: ScanMode }) {
+  const isActive = job.status === "running" || job.status === "queued";
+  const loadingText =
+    mode === "discovery" ? "Running cloudlist — enumerating GCP assets…" :
+    mode === "audit"     ? "Running prowler — auditing GCP security posture…" :
+                           "Running cloudlist + prowler against GCP…";
+
+  if (isActive) return (
+    <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground">
+      <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{loadingText}</span>
+    </div>
+  );
+  if (job.status === "failed") return (
+    <div className="flex items-center gap-2 text-red-400 text-sm py-4">
+      <XCircle className="h-4 w-4 shrink-0" />{job.error ?? "Scan failed"}
+    </div>
+  );
+  if (!job.result) return null;
+  return (
+    <>
+      {mode !== "audit" && (
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <Globe className="h-4 w-4 text-violet-400" />
+              <span className="text-[13px] font-semibold text-foreground">Discovered Assets</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground/60">{(job.result.assets ?? []).length} assets via cloudlist</span>
+          </div>
+          <div className="p-5"><AssetsTable assets={job.result.assets ?? []} /></div>
+        </section>
+      )}
+      {mode !== "discovery" && (
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <Shield className="h-4 w-4 text-violet-400" />
+              <span className="text-[13px] font-semibold text-foreground">Security Findings</span>
+              {job.result.account_id && (
+                <span className="text-[11px] text-muted-foreground/50 font-mono">project: {job.result.account_id}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <StatusBadge status={job.status} />
+              {job.result.summary && (
+                <div className="flex items-center gap-2 text-[11px]">
+                  {["critical","high","medium","low","info"].map(sev =>
+                    (job.result!.summary[sev] ?? 0) > 0 ? (
+                      <span key={sev} className={`rounded border px-1.5 py-0.5 font-semibold uppercase ${SEVERITY_COLORS[sev]}`}>
+                        {job.result!.summary[sev]} {sev}
+                      </span>
+                    ) : null
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="p-5"><FindingsTable findings={job.result.findings ?? []} /></div>
+        </section>
+      )}
+    </>
+  );
+}
+
 export default function GCPPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const [tab, setTab] = useState<ScanMode>("both");
   const [saJSON, setSaJSON] = useState("");
   const [projectID, setProjectID] = useState("");
   const [savingCreds, setSavingCreds] = useState(false);
@@ -152,9 +221,7 @@ export default function GCPPage() {
   if (loading || !user) return null;
 
   const handleSaveCreds = async () => {
-    setSavingCreds(true);
-    setCredsError("");
-    setCredsSaved(false);
+    setSavingCreds(true); setCredsError(""); setCredsSaved(false);
     try {
       const data: Record<string, string> = { service_account_json: saJSON };
       if (projectID) data.project_id = projectID;
@@ -163,23 +230,18 @@ export default function GCPPage() {
       setTimeout(() => setCredsSaved(false), 3000);
     } catch (e: unknown) {
       setCredsError(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSavingCreds(false);
-    }
+    } finally { setSavingCreds(false); }
   };
 
   const handleClearCreds = async () => {
     await api.cloud.deleteCredentials("gcp").catch(() => {});
-    setSaJSON("");
-    setProjectID("");
+    setSaJSON(""); setProjectID("");
   };
 
   const handleScan = async () => {
-    setScanError("");
-    setScanning(true);
-    setCurrentJob(null);
+    setScanError(""); setScanning(true); setCurrentJob(null);
     try {
-      const opts: Record<string, string> = { service_account_json: saJSON };
+      const opts: Record<string, string> = { service_account_json: saJSON, mode: tab };
       if (projectID) opts.project_id = projectID;
       const { id } = await api.cloud.createScan("gcp", opts);
       const job = await api.cloud.getScan(id);
@@ -191,6 +253,17 @@ export default function GCPPage() {
     }
   };
 
+  const TABS: { id: ScanMode; label: string; icon: React.ReactNode; desc: string }[] = [
+    { id: "discovery", label: "Asset Discovery", icon: <Globe className="h-3.5 w-3.5" />,      desc: "Enumerate IPs, hostnames, and cloud resources via cloudlist" },
+    { id: "audit",     label: "Security Audit",  icon: <Shield className="h-3.5 w-3.5" />,     desc: "500+ misconfiguration checks via prowler" },
+    { id: "both",      label: "Full Scan",        icon: <ScanSearch className="h-3.5 w-3.5" />, desc: "Run both asset discovery and security audit" },
+  ];
+
+  const runLabel =
+    tab === "discovery" ? "Run Asset Discovery" :
+    tab === "audit"     ? "Run Security Audit" :
+                          "Run Full Scan";
+
   return (
     <AppShell>
       <main className="min-h-screen bg-background bg-dots">
@@ -199,7 +272,7 @@ export default function GCPPage() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
             <Link href="/cloud" className="hover:text-muted-foreground transition-colors">Cloud</Link>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-muted-foreground">GCP Configuration Review</span>
+            <span className="text-muted-foreground">GCP</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -207,8 +280,8 @@ export default function GCPPage() {
               <Cpu className="h-5 w-5 text-violet-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">GCP Configuration Review</h1>
-              <p className="text-[12px] text-muted-foreground/60">Audit GCS, Compute, BigQuery, Cloud SQL, Cloud Functions, and IAM.</p>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">GCP</h1>
+              <p className="text-[12px] text-muted-foreground/60">Asset discovery and security posture audit for your GCP environment.</p>
             </div>
           </div>
 
@@ -231,9 +304,7 @@ export default function GCPPage() {
                   onChange={e => setSaJSON(e.target.value)}
                   className="w-full rounded-lg border border-border bg-secondary px-3.5 py-2.5 font-mono text-[12px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all resize-none"
                 />
-                <p className="text-[11px] text-muted-foreground/40">
-                  Paste the full contents of your service account JSON key file. The key needs Cloud Viewer roles.
-                </p>
+                <p className="text-[11px] text-muted-foreground/40">Paste the full contents of your service account JSON key file. The key needs Cloud Viewer roles.</p>
               </div>
               <div className="space-y-1.5 max-w-sm">
                 <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">
@@ -266,67 +337,34 @@ export default function GCPPage() {
             </div>
           </section>
 
+          {/* Scan mode tabs */}
+          <div className="flex gap-1 rounded-lg border border-border bg-muted/20 p-1">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex-1 rounded-md px-4 py-2 text-[13px] font-semibold transition-all ${
+                  tab === t.id
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}>
+                <span className="flex items-center justify-center gap-2">{t.icon}{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground/50 -mt-4">
+            {TABS.find(t => t.id === tab)?.desc}
+          </p>
+
+          {/* Run button */}
           <div className="flex items-center gap-4">
             <button onClick={handleScan} disabled={scanning}
               className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all">
               {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              {scanning ? "Scanning…" : "Run GCP Review"}
+              {scanning ? "Scanning…" : runLabel}
             </button>
             {scanError && <div className="flex items-center gap-2 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />{scanError}</div>}
           </div>
 
-          {currentJob && (
-            <>
-              {currentJob.result?.assets && currentJob.result.assets.length > 0 && (
-                <section className="rounded-xl border border-border bg-card overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Globe className="h-4 w-4 text-violet-400" />
-                      <span className="text-[13px] font-semibold text-foreground">Discovered Assets</span>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground/60">{currentJob.result.assets.length} assets via cloudlist</span>
-                  </div>
-                  <div className="p-5"><AssetsTable assets={currentJob.result.assets} /></div>
-                </section>
-              )}
-              <section className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <Shield className="h-4 w-4 text-violet-400" />
-                    <span className="text-[13px] font-semibold text-foreground">Security Findings</span>
-                    {currentJob.result?.account_id && (
-                      <span className="text-[11px] text-muted-foreground/50 font-mono">project: {currentJob.result.account_id}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <StatusBadge status={currentJob.status} />
-                    {currentJob.result?.summary && (
-                      <div className="flex items-center gap-2 text-[11px]">
-                        {["critical","high","medium","low","info"].map(sev =>
-                          (currentJob.result!.summary[sev] ?? 0) > 0 ? (
-                            <span key={sev} className={`rounded border px-1.5 py-0.5 font-semibold uppercase ${SEVERITY_COLORS[sev]}`}>
-                              {currentJob.result!.summary[sev]} {sev}
-                            </span>
-                          ) : null
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="p-5">
-                  {currentJob.status === "running" || currentJob.status === "queued" ? (
-                    <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground">
-                      <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Running cloudlist + prowler against GCP…</span>
-                    </div>
-                  ) : currentJob.status === "failed" ? (
-                    <div className="flex items-center gap-2 text-red-400 text-sm py-4">
-                      <XCircle className="h-4 w-4 shrink-0" />{currentJob.error ?? "Scan failed"}
-                    </div>
-                  ) : currentJob.result ? <FindingsTable findings={currentJob.result.findings} /> : null}
-                </div>
-              </section>
-            </>
-          )}
+          {currentJob && <JobResults job={currentJob} mode={tab} />}
 
           {recentScans.length > 0 && !currentJob && (
             <section className="rounded-xl border border-border bg-card overflow-hidden">

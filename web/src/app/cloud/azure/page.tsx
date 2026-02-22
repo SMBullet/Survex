@@ -7,9 +7,11 @@ import { api, CloudScanJob, CloudFinding, CloudAsset } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import {
   Cloud, ChevronRight, Key, Shield, AlertCircle,
-  Loader2, Play, Trash2, CheckCircle, Clock, XCircle, Globe,
+  Loader2, Play, Trash2, CheckCircle, Clock, XCircle, Globe, ScanSearch,
 } from "lucide-react";
 import Link from "next/link";
+
+type ScanMode = "both" | "discovery" | "audit";
 
 const AZURE_FIELDS = [
   { key: "tenant_id",       label: "Tenant ID",       type: "text",     placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", required: true },
@@ -42,7 +44,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function AssetsTable({ assets }: { assets: CloudAsset[] }) {
-  if (!assets.length) return null;
+  if (!assets.length) return (
+    <p className="text-center text-muted-foreground text-sm py-8">No assets discovered.</p>
+  );
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[12px]">
@@ -110,10 +114,72 @@ function FindingsTable({ findings }: { findings: CloudFinding[] }) {
   );
 }
 
+function JobResults({ job, mode }: { job: CloudScanJob; mode: ScanMode }) {
+  const isActive = job.status === "running" || job.status === "queued";
+  const loadingText =
+    mode === "discovery" ? "Running cloudlist — enumerating Azure assets…" :
+    mode === "audit"     ? "Running prowler — auditing Azure security posture…" :
+                           "Running cloudlist + prowler against Azure…";
+
+  if (isActive) return (
+    <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground">
+      <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{loadingText}</span>
+    </div>
+  );
+  if (job.status === "failed") return (
+    <div className="flex items-center gap-2 text-red-400 text-sm py-4">
+      <XCircle className="h-4 w-4 shrink-0" />{job.error ?? "Scan failed"}
+    </div>
+  );
+  if (!job.result) return null;
+  return (
+    <>
+      {mode !== "audit" && (
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <Globe className="h-4 w-4 text-blue-400" />
+              <span className="text-[13px] font-semibold text-foreground">Discovered Assets</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground/60">{(job.result.assets ?? []).length} assets via cloudlist</span>
+          </div>
+          <div className="p-5"><AssetsTable assets={job.result.assets ?? []} /></div>
+        </section>
+      )}
+      {mode !== "discovery" && (
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
+            <div className="flex items-center gap-2.5">
+              <Shield className="h-4 w-4 text-blue-400" />
+              <span className="text-[13px] font-semibold text-foreground">Security Findings</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <StatusBadge status={job.status} />
+              {job.result.summary && (
+                <div className="flex items-center gap-2 text-[11px]">
+                  {["critical","high","medium","low","info"].map(sev =>
+                    (job.result!.summary[sev] ?? 0) > 0 ? (
+                      <span key={sev} className={`rounded border px-1.5 py-0.5 font-semibold uppercase ${SEVERITY_COLORS[sev]}`}>
+                        {job.result!.summary[sev]} {sev}
+                      </span>
+                    ) : null
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="p-5"><FindingsTable findings={job.result.findings ?? []} /></div>
+        </section>
+      )}
+    </>
+  );
+}
+
 export default function AzurePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const [tab, setTab] = useState<ScanMode>("both");
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [savingCreds, setSavingCreds] = useState(false);
   const [credsError, setCredsError] = useState("");
@@ -155,18 +221,14 @@ export default function AzurePage() {
   if (loading || !user) return null;
 
   const handleSaveCreds = async () => {
-    setSavingCreds(true);
-    setCredsError("");
-    setCredsSaved(false);
+    setSavingCreds(true); setCredsError(""); setCredsSaved(false);
     try {
       await api.cloud.saveCredentials("azure", creds);
       setCredsSaved(true);
       setTimeout(() => setCredsSaved(false), 3000);
     } catch (e: unknown) {
       setCredsError(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSavingCreds(false);
-    }
+    } finally { setSavingCreds(false); }
   };
 
   const handleClearCreds = async () => {
@@ -175,11 +237,10 @@ export default function AzurePage() {
   };
 
   const handleScan = async () => {
-    setScanError("");
-    setScanning(true);
-    setCurrentJob(null);
+    setScanError(""); setScanning(true); setCurrentJob(null);
     try {
-      const { id } = await api.cloud.createScan("azure", creds);
+      const opts = { ...creds, mode: tab };
+      const { id } = await api.cloud.createScan("azure", opts);
       const job = await api.cloud.getScan(id);
       setCurrentJob(job);
       pollJob(id);
@@ -189,6 +250,17 @@ export default function AzurePage() {
     }
   };
 
+  const TABS: { id: ScanMode; label: string; icon: React.ReactNode; desc: string }[] = [
+    { id: "discovery", label: "Asset Discovery", icon: <Globe className="h-3.5 w-3.5" />,      desc: "Enumerate IPs, hostnames, and cloud resources via cloudlist" },
+    { id: "audit",     label: "Security Audit",  icon: <Shield className="h-3.5 w-3.5" />,     desc: "500+ misconfiguration checks via prowler" },
+    { id: "both",      label: "Full Scan",        icon: <ScanSearch className="h-3.5 w-3.5" />, desc: "Run both asset discovery and security audit" },
+  ];
+
+  const runLabel =
+    tab === "discovery" ? "Run Asset Discovery" :
+    tab === "audit"     ? "Run Security Audit" :
+                          "Run Full Scan";
+
   return (
     <AppShell>
       <main className="min-h-screen bg-background bg-dots">
@@ -197,7 +269,7 @@ export default function AzurePage() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
             <Link href="/cloud" className="hover:text-muted-foreground transition-colors">Cloud</Link>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-muted-foreground">Azure Configuration Review</span>
+            <span className="text-muted-foreground">Azure</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -205,11 +277,12 @@ export default function AzurePage() {
               <Cloud className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">Azure Configuration Review</h1>
-              <p className="text-[12px] text-muted-foreground/60">Audit Storage, App Services, SQL, Key Vault, and NSG for misconfigurations.</p>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">Azure</h1>
+              <p className="text-[12px] text-muted-foreground/60">Asset discovery and security posture audit for your Azure environment.</p>
             </div>
           </div>
 
+          {/* Credentials */}
           <section className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="flex items-center gap-2.5 border-b border-border bg-muted/20 px-5 py-3">
               <Key className="h-4 w-4 text-blue-400" />
@@ -250,64 +323,34 @@ export default function AzurePage() {
             </div>
           </section>
 
+          {/* Scan mode tabs */}
+          <div className="flex gap-1 rounded-lg border border-border bg-muted/20 p-1">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex-1 rounded-md px-4 py-2 text-[13px] font-semibold transition-all ${
+                  tab === t.id
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}>
+                <span className="flex items-center justify-center gap-2">{t.icon}{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground/50 -mt-4">
+            {TABS.find(t => t.id === tab)?.desc}
+          </p>
+
+          {/* Run button */}
           <div className="flex items-center gap-4">
             <button onClick={handleScan} disabled={scanning}
               className="flex items-center gap-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-all">
               {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              {scanning ? "Scanning…" : "Run Azure Review"}
+              {scanning ? "Scanning…" : runLabel}
             </button>
             {scanError && <div className="flex items-center gap-2 text-sm text-red-400"><AlertCircle className="h-4 w-4 shrink-0" />{scanError}</div>}
           </div>
 
-          {currentJob && (
-            <>
-              {currentJob.result?.assets && currentJob.result.assets.length > 0 && (
-                <section className="rounded-xl border border-border bg-card overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Globe className="h-4 w-4 text-blue-400" />
-                      <span className="text-[13px] font-semibold text-foreground">Discovered Assets</span>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground/60">{currentJob.result.assets.length} assets via cloudlist</span>
-                  </div>
-                  <div className="p-5"><AssetsTable assets={currentJob.result.assets} /></div>
-                </section>
-              )}
-              <section className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between border-b border-border bg-muted/20 px-5 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <Shield className="h-4 w-4 text-blue-400" />
-                    <span className="text-[13px] font-semibold text-foreground">Security Findings</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <StatusBadge status={currentJob.status} />
-                    {currentJob.result?.summary && (
-                      <div className="flex items-center gap-2 text-[11px]">
-                        {["critical","high","medium","low","info"].map(sev =>
-                          (currentJob.result!.summary[sev] ?? 0) > 0 ? (
-                            <span key={sev} className={`rounded border px-1.5 py-0.5 font-semibold uppercase ${SEVERITY_COLORS[sev]}`}>
-                              {currentJob.result!.summary[sev]} {sev}
-                            </span>
-                          ) : null
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="p-5">
-                  {currentJob.status === "running" || currentJob.status === "queued" ? (
-                    <div className="flex items-center justify-center gap-3 py-12 text-muted-foreground">
-                      <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Running cloudlist + prowler against Azure…</span>
-                    </div>
-                  ) : currentJob.status === "failed" ? (
-                    <div className="flex items-center gap-2 text-red-400 text-sm py-4">
-                      <XCircle className="h-4 w-4 shrink-0" />{currentJob.error ?? "Scan failed"}
-                    </div>
-                  ) : currentJob.result ? <FindingsTable findings={currentJob.result.findings} /> : null}
-                </div>
-              </section>
-            </>
-          )}
+          {currentJob && <JobResults job={currentJob} mode={tab} />}
 
           {recentScans.length > 0 && !currentJob && (
             <section className="rounded-xl border border-border bg-card overflow-hidden">
