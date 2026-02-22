@@ -5,28 +5,26 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertCircle, Globe, Shield, Server, Zap, Eye, Cloud, Activity, ChevronRight,
+  AlertCircle, Globe, Shield, Server, Zap, Eye, Cloud, Activity, ChevronRight, Check,
 } from "lucide-react";
 
-// ── Module catalogue ──────────────────────────────────────────────────────────
+// ── Data ──────────────────────────────────────────────────────────────────────
 
 const MODULE_GROUPS = [
   {
     label: "Recon",
-    icon: <Globe className="h-4 w-4" />,
+    color: "text-cyan-400",
+    border: "border-cyan-500/20",
+    bg: "bg-cyan-500/5",
+    icon: <Globe className="h-3.5 w-3.5" />,
     modules: [
       { id: "crts",       label: "Certificate Transparency", desc: "Mine crt.sh for subdomains",          builtin: true },
       { id: "dns",        label: "DNS Resolution",           desc: "Resolve all discovered hosts",         builtin: true },
-      { id: "dnsbrute",   label: "DNS Bruteforce",           desc: "Wordlist-based subdomain bruteforce",  builtin: true },
+      { id: "dnsbrute",   label: "DNS Bruteforce",           desc: "Wordlist-based subdomain discovery",   builtin: true },
       { id: "subfinder",  label: "Subfinder",                desc: "Passive subdomain enumeration" },
       { id: "amass",      label: "Amass",                    desc: "OSINT subdomain enumeration" },
       { id: "gau",        label: "Historical URLs",          desc: "Fetch URLs from gau / Wayback" },
@@ -37,10 +35,13 @@ const MODULE_GROUPS = [
   },
   {
     label: "Web Security",
-    icon: <Shield className="h-4 w-4" />,
+    color: "text-violet-400",
+    border: "border-violet-500/20",
+    bg: "bg-violet-500/5",
+    icon: <Shield className="h-3.5 w-3.5" />,
     modules: [
-      { id: "httpx",     label: "HTTP Probing",       desc: "Probe live HTTP services",              builtin: true },
-      { id: "tls",       label: "TLS Analysis",       desc: "Analyse certificates and ciphers",      builtin: true },
+      { id: "httpx",     label: "HTTP Probing",       desc: "Probe live HTTP/S services",            builtin: true },
+      { id: "tls",       label: "TLS Analysis",       desc: "Analyse certs and cipher suites",       builtin: true },
       { id: "waf",       label: "WAF Detection",      desc: "Fingerprint web application firewalls", builtin: true },
       { id: "headers",   label: "Security Headers",   desc: "Audit HTTP response headers",           builtin: true },
       { id: "cors",      label: "CORS",               desc: "Detect CORS misconfigurations",         builtin: true },
@@ -54,39 +55,82 @@ const MODULE_GROUPS = [
   },
   {
     label: "Active Scanning",
-    icon: <Zap className="h-4 w-4" />,
+    color: "text-red-400",
+    border: "border-red-500/20",
+    bg: "bg-red-500/5",
+    icon: <Zap className="h-3.5 w-3.5" />,
     modules: [
-      { id: "nmap",         label: "Port Scanning",    desc: "Full port scan with nmap" },
-      { id: "nuclei",       label: "Nuclei",           desc: "CVE / vuln template scanning" },
-      { id: "apidiscovery", label: "API Discovery",    desc: "Discover Swagger / OpenAPI / actuator",  builtin: true },
-      { id: "graphql",      label: "GraphQL",          desc: "GraphQL introspection probing",           builtin: true },
-      { id: "ffuf",         label: "Content Discovery", desc: "Bruteforce hidden paths",               builtin: true },
-      { id: "openredirect", label: "Open Redirect",    desc: "Test for open redirect vulnerabilities",  builtin: true },
-      { id: "dalfox",       label: "XSS Scan",         desc: "Automated XSS scanning with dalfox" },
-      { id: "sqlmap",       label: "SQLi Scan",        desc: "SQL injection testing with sqlmap" },
+      { id: "nmap",         label: "Port Scanning",     desc: "Full port scan with nmap" },
+      { id: "nuclei",       label: "Nuclei",            desc: "CVE / vuln template scanning" },
+      { id: "apidiscovery", label: "API Discovery",     desc: "Discover Swagger / OpenAPI / actuator", builtin: true },
+      { id: "graphql",      label: "GraphQL",           desc: "GraphQL introspection probing",          builtin: true },
+      { id: "ffuf",         label: "Content Discovery", desc: "Bruteforce hidden paths",                builtin: true },
+      { id: "openredirect", label: "Open Redirect",     desc: "Test for open redirect vulns",           builtin: true },
+      { id: "dalfox",       label: "XSS Scan",          desc: "Automated XSS scanning with dalfox" },
+      { id: "sqlmap",       label: "SQLi Scan",         desc: "SQL injection testing with sqlmap" },
     ],
   },
 ];
 
 const ALL_IDS = MODULE_GROUPS.flatMap(g => g.modules.map(m => m.id));
 
-// ── Profiles ──────────────────────────────────────────────────────────────────
-
 const PROFILES = [
-  { value: "custom",  label: "Custom",  desc: "Choose modules manually",             icon: <Activity className="h-4 w-4" />,  modules: [] as string[] },
-  { value: "quick",   label: "Quick",   desc: "crts · dns · httpx · tls · headers",  icon: <Zap className="h-4 w-4" />,       modules: ["crts","dns","httpx","tls","headers"] },
-  { value: "web",     label: "Web",     desc: "Full web scan + vuln scanning",        icon: <Globe className="h-4 w-4" />,     modules: ["subfinder","crts","amass","dns","httpx","tls","waf","headers","cors","cookies","nuclei"] },
-  { value: "full",    label: "Full",    desc: "Every module — most thorough",         icon: <Shield className="h-4 w-4" />,    modules: ALL_IDS },
-  { value: "passive", label: "Passive", desc: "No active probing (crts, dns, shodan)",icon: <Eye className="h-4 w-4" />,      modules: ["crts","dns","shodan"] },
-  { value: "cloud",   label: "Cloud",   desc: "Cloud storage + nuclei cloud templates",icon: <Cloud className="h-4 w-4" />,   modules: ["subfinder","crts","dns","httpx","s3","nuclei"] },
+  {
+    value: "quick",   label: "Quick",   icon: <Zap className="h-4 w-4" />,
+    desc: "Fast recon + HTTP probing",
+    modules: ["crts","dns","httpx","tls","headers"],
+    color: "border-cyan-500/30 bg-cyan-500/8",
+    active: "border-cyan-500 bg-cyan-500/15 text-cyan-300",
+    iconColor: "text-cyan-400",
+  },
+  {
+    value: "web",     label: "Web",     icon: <Globe className="h-4 w-4" />,
+    desc: "Full web + vuln scanning",
+    modules: ["subfinder","crts","amass","dns","httpx","tls","waf","headers","cors","cookies","nuclei"],
+    color: "border-violet-500/30 bg-violet-500/8",
+    active: "border-violet-500 bg-violet-500/15 text-violet-300",
+    iconColor: "text-violet-400",
+  },
+  {
+    value: "full",    label: "Full",    icon: <Shield className="h-4 w-4" />,
+    desc: "Every module — most thorough",
+    modules: ALL_IDS,
+    color: "border-emerald-500/30 bg-emerald-500/8",
+    active: "border-emerald-500 bg-emerald-500/15 text-emerald-300",
+    iconColor: "text-emerald-400",
+  },
+  {
+    value: "passive", label: "Passive", icon: <Eye className="h-4 w-4" />,
+    desc: "No active probing",
+    modules: ["crts","dns","shodan"],
+    color: "border-zinc-600/30 bg-zinc-700/10",
+    active: "border-zinc-500 bg-zinc-500/15 text-zinc-300",
+    iconColor: "text-zinc-400",
+  },
+  {
+    value: "cloud",   label: "Cloud",   icon: <Cloud className="h-4 w-4" />,
+    desc: "Cloud storage + nuclei cloud",
+    modules: ["subfinder","crts","dns","httpx","s3","nuclei"],
+    color: "border-blue-500/30 bg-blue-500/8",
+    active: "border-blue-500 bg-blue-500/15 text-blue-300",
+    iconColor: "text-blue-400",
+  },
+  {
+    value: "custom",  label: "Custom",  icon: <Activity className="h-4 w-4" />,
+    desc: "Choose modules manually",
+    modules: [],
+    color: "border-amber-500/30 bg-amber-500/8",
+    active: "border-amber-500 bg-amber-500/15 text-amber-300",
+    iconColor: "text-amber-400",
+  },
 ];
 
 const PORT_OPTIONS = [
-  { value: "top-1000", label: "Top 1,000 (default)" },
-  { value: "top-100",  label: "Top 100 (fast)" },
-  { value: "full",     label: "All 65,535 ports" },
-  { value: "web",      label: "Web ports only" },
-  { value: "db",       label: "Database ports only" },
+  { value: "top-1000", label: "Top 1,000",       sub: "default" },
+  { value: "top-100",  label: "Top 100",          sub: "fast" },
+  { value: "full",     label: "All 65,535",       sub: "thorough" },
+  { value: "web",      label: "Web ports only",   sub: "80,443,8080…" },
+  { value: "db",       label: "Database ports",   sub: "MySQL,PG,Mongo…" },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -109,10 +153,10 @@ export default function NewScanPage() {
 
   if (!loading && !user) { router.replace("/login"); return null; }
 
-  const currentProfile = PROFILES.find(p => p.value === profile)!;
-
   const toggle = (id: string) =>
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const currentProfile = PROFILES.find(p => p.value === profile)!;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,185 +182,297 @@ export default function NewScanPage() {
     }
   };
 
+  // Active module count for display
+  const activeModuleCount = profile === "custom" ? selected.size : currentProfile.modules.length;
+
   return (
     <AppShell>
-      <main className="mx-auto max-w-4xl px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">New Scan</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Configure your scan target, profile, and modules.</p>
-        </div>
+      <main className="min-h-screen bg-[#030812] bg-dots">
+        <div className="mx-auto max-w-5xl px-6 py-8">
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-
-          {/* Target */}
-          <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-            <h2 className="font-semibold flex items-center gap-2 text-sm">
-              <Globe className="h-4 w-4 text-emerald-500" />Target
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Client name <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-                <Input placeholder="acme-corp" value={client} onChange={e => setClient(e.target.value)} />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Targets <span className="text-destructive">*</span></Label>
-                <Textarea
-                  placeholder={"example.com\napp.example.com\n192.168.1.0/24"}
-                  rows={3}
-                  value={targetsText}
-                  onChange={e => setTargets(e.target.value)}
-                  className="font-mono text-sm resize-none"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">Domains, IPs, CIDR ranges — one per line.</p>
-              </div>
+          {/* Header */}
+          <div className="mb-8 space-y-1">
+            <div className="flex items-center gap-2 text-xs text-zinc-600 mb-3">
+              <span className="hover:text-zinc-400 cursor-pointer" onClick={() => router.push("/dashboard")}>Dashboard</span>
+              <ChevronRight className="h-3 w-3" />
+              <span className="text-zinc-400">New Scan</span>
             </div>
-          </section>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Target Acquisition</h1>
+            <p className="text-sm text-zinc-500">Configure scan scope, profile, and modules.</p>
+          </div>
 
-          {/* Profile */}
-          <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-            <h2 className="font-semibold flex items-center gap-2 text-sm">
-              <Activity className="h-4 w-4 text-emerald-500" />Scan Profile
-            </h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              {PROFILES.map(p => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setProfile(p.value)}
-                  className={`relative rounded-lg border p-3 text-left transition-all ${
-                    profile === p.value
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-border hover:border-muted-foreground/50 text-muted-foreground"
-                  }`}
-                >
-                  <div className={`mb-1.5 ${profile === p.value ? "text-emerald-500" : "text-muted-foreground"}`}>{p.icon}</div>
-                  <p className="text-sm font-semibold">{p.label}</p>
-                  <p className="text-xs mt-0.5 leading-snug text-muted-foreground">{p.desc}</p>
-                  {p.modules.length > 0 && (
-                    <span className="absolute top-2 right-2 text-[10px] bg-muted rounded px-1 text-muted-foreground">
-                      {p.modules.length}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-            {profile !== "custom" && currentProfile.modules.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {currentProfile.modules.map(m => (
-                  <Badge key={m} variant="secondary" className="text-xs font-mono">{m}</Badge>
-                ))}
+          <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* ── Target ────────────────────────────────────────────────── */}
+            <section className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+                <Globe className="h-4 w-4 text-emerald-400" />
+                <span className="text-[13px] font-semibold text-white">Target Scope</span>
+              </div>
+              <div className="p-5 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">
+                    Client Name <span className="text-zinc-700 font-normal normal-case tracking-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    placeholder="acme-corp"
+                    value={client}
+                    onChange={e => setClient(e.target.value)}
+                    className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-700 focus:border-emerald-500/50 h-9"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">
+                    Targets <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    placeholder={"example.com\napp.example.com\n192.168.1.0/24"}
+                    rows={4}
+                    value={targetsText}
+                    onChange={e => setTargets(e.target.value)}
+                    className="font-mono text-sm resize-none bg-white/[0.04] border-white/[0.08] text-emerald-300 placeholder:text-zinc-700 focus:border-emerald-500/50"
+                    required
+                  />
+                  <p className="text-[11px] text-zinc-600">Domains, IPs, or CIDR ranges — one per line or comma-separated.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Profile selector ──────────────────────────────────────── */}
+            <section className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+                <Activity className="h-4 w-4 text-emerald-400" />
+                <span className="text-[13px] font-semibold text-white">Scan Profile</span>
+                <span className="ml-auto text-[11px] text-zinc-600">{activeModuleCount} module{activeModuleCount !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="p-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {PROFILES.map(p => {
+                    const isActive = profile === p.value;
+                    return (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setProfile(p.value)}
+                        className={`relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-all ${
+                          isActive ? p.active : "border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/15"
+                        }`}
+                      >
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-lg border ${
+                          isActive ? "border-current/30 bg-current/10" : "border-white/[0.07] bg-white/5"
+                        }`}>
+                          <span className={isActive ? "text-inherit" : "text-zinc-600"}>{p.icon}</span>
+                        </div>
+                        <div>
+                          <p className={`text-[13px] font-semibold ${isActive ? "" : "text-zinc-300"}`}>{p.label}</p>
+                          <p className="text-[10px] text-zinc-600 mt-0.5 leading-snug">{p.desc}</p>
+                        </div>
+                        {p.modules.length > 0 && (
+                          <span className="absolute top-2 right-2 text-[9px] text-zinc-600 font-mono">{p.modules.length}</span>
+                        )}
+                        {isActive && (
+                          <span className="absolute bottom-2 right-2">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Profile preview chips */}
+                {profile !== "custom" && currentProfile.modules.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {currentProfile.modules.map(m => (
+                      <span key={m} className="rounded border border-white/[0.07] bg-white/[0.03] px-2 py-0.5 text-[11px] font-mono text-zinc-500">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ── Custom module picker ───────────────────────────────────── */}
+            {profile === "custom" && (
+              <section className="rounded-xl border border-amber-500/15 bg-[#0a1628]/70 overflow-hidden">
+                <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+                  <Shield className="h-4 w-4 text-amber-400" />
+                  <span className="text-[13px] font-semibold text-white">Module Selection</span>
+                  <span className="ml-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                    {selected.size} selected
+                  </span>
+                  <div className="ml-auto flex gap-1.5">
+                    <button type="button" onClick={() => setSelected(new Set(ALL_IDS))}
+                      className="rounded px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+                      All
+                    </button>
+                    <button type="button" onClick={() => setSelected(new Set())}
+                      className="rounded px-2 py-1 text-[11px] text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-colors">
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="p-5 space-y-5">
+                  {MODULE_GROUPS.map(group => (
+                    <div key={group.label}>
+                      <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 mb-3 ${group.border} ${group.bg}`}>
+                        <span className={group.color}>{group.icon}</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${group.color}`}>{group.label}</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                        {group.modules.map(m => {
+                          const on = selected.has(m.id);
+                          return (
+                            <label
+                              key={m.id}
+                              className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
+                                on
+                                  ? "border-emerald-500/40 bg-emerald-500/6 text-white"
+                                  : "border-white/[0.06] hover:border-white/15 text-zinc-500 hover:text-zinc-300"
+                              }`}
+                            >
+                              <div className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all ${
+                                on ? "bg-emerald-500 border-emerald-500" : "border-white/20 bg-white/5"
+                              }`}>
+                                {on && <Check className="h-2.5 w-2.5 text-white" />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[13px] font-medium">{m.label}</span>
+                                  {m.builtin && (
+                                    <span className="text-[9px] bg-zinc-700/50 text-zinc-500 rounded px-1.5 py-0.5 font-bold uppercase tracking-wider">
+                                      built-in
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-zinc-600 mt-0.5">{m.desc}</p>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── Options ───────────────────────────────────────────────── */}
+            <section className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+              <div className="flex items-center gap-2.5 border-b border-white/[0.05] bg-white/[0.02] px-5 py-3">
+                <Server className="h-4 w-4 text-emerald-400" />
+                <span className="text-[13px] font-semibold text-white">Scan Options</span>
+              </div>
+              <div className="p-5 space-y-5">
+
+                {/* Port profile */}
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Port Profile</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {PORT_OPTIONS.map(p => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setPorts(p.value)}
+                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] transition-all ${
+                          ports === p.value
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                            : "border-white/[0.07] bg-white/[0.02] text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="font-medium">{p.label}</span>
+                        <span className="text-[10px] opacity-60">{p.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rate + threads */}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Rate (req/s)</Label>
+                    <Input
+                      type="number" min={1} max={500}
+                      value={rate} onChange={e => setRate(Number(e.target.value))}
+                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-emerald-500/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-zinc-600">Threads</Label>
+                    <Input
+                      type="number" min={1} max={200}
+                      value={threads} onChange={e => setThreads(Number(e.target.value))}
+                      className="bg-white/[0.04] border-white/[0.08] text-white h-9 font-mono focus:border-emerald-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Toggles */}
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { id: "nosubs",  label: "Skip subdomain enumeration", sub: "Scan provided targets as-is", val: noSubs,  set: setNoSubs },
+                    { id: "passive", label: "Passive recon only",          sub: "No active probing or ports",  val: passive, set: setPassive },
+                  ].map(opt => (
+                    <label
+                      key={opt.id}
+                      className="flex items-start gap-3 cursor-pointer group"
+                    >
+                      <div
+                        onClick={() => opt.set(!opt.val)}
+                        className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-all cursor-pointer ${
+                          opt.val ? "bg-emerald-500 border-emerald-500" : "border-white/20 bg-white/5 group-hover:border-white/40"
+                        }`}
+                      >
+                        {opt.val && <Check className="h-2.5 w-2.5 text-white" />}
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-medium text-zinc-300">{opt.label}</p>
+                        <p className="text-[11px] text-zinc-600">{opt.sub}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2.5 rounded-lg border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
               </div>
             )}
-          </section>
 
-          {/* Custom module picker */}
-          {profile === "custom" && (
-            <section className="rounded-xl border border-border bg-card p-5 space-y-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold flex items-center gap-2 text-sm">
-                  <Shield className="h-4 w-4 text-emerald-500" />Modules
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">{selected.size} selected</Badge>
-                </h2>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setSelected(new Set(ALL_IDS))}>All</Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
-                </div>
-              </div>
-
-              {MODULE_GROUPS.map(group => (
-                <div key={group.label} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{group.icon}</span>
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {group.modules.map(m => {
-                      const on = selected.has(m.id);
-                      return (
-                        <label
-                          key={m.id}
-                          className={`flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer transition-all ${
-                            on
-                              ? "border-emerald-500/50 bg-emerald-500/5 text-foreground"
-                              : "border-border hover:border-muted-foreground/40 text-muted-foreground"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 h-3.5 w-3.5 accent-emerald-500 shrink-0"
-                            checked={on}
-                            onChange={() => toggle(m.id)}
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-sm font-medium">{m.label}</span>
-                              {m.builtin && <span className="text-[10px] bg-muted text-muted-foreground rounded px-1 shrink-0">built-in</span>}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{m.desc}</p>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-
-          {/* Options */}
-          <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-            <h2 className="font-semibold flex items-center gap-2 text-sm">
-              <Server className="h-4 w-4 text-emerald-500" />Options
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label>Port Profile</Label>
-                <Select value={ports} onValueChange={setPorts}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PORT_OPTIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Rate <span className="text-xs text-muted-foreground">(req/s)</span></Label>
-                <Input type="number" min={1} max={500} value={rate} onChange={e => setRate(Number(e.target.value))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Threads</Label>
-                <Input type="number" min={1} max={200} value={threads} onChange={e => setThreads(Number(e.target.value))} />
-              </div>
+            {/* Submit */}
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-6 py-2.5 text-sm font-semibold text-white transition-all"
+              >
+                {submitting ? (
+                  <>
+                    <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    Launching…
+                  </>
+                ) : (
+                  <>
+                    Launch Scan
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                className="rounded-lg border border-white/[0.07] px-5 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-all"
+              >
+                Cancel
+              </button>
             </div>
-            <div className="flex flex-wrap gap-6">
-              {[
-                { id: "nosubs",  label: "Skip subdomain enumeration", sub: "Scan provided targets directly",     checked: noSubs,  set: setNoSubs },
-                { id: "passive", label: "Passive recon only",          sub: "No active probing or port scanning", checked: passive, set: setPassive },
-              ].map(opt => (
-                <label key={opt.id} className="flex items-start gap-3 cursor-pointer group">
-                  <input type="checkbox" className="mt-1 h-4 w-4 accent-emerald-500" checked={opt.checked} onChange={e => opt.set(e.target.checked)} />
-                  <div>
-                    <p className="text-sm font-medium">{opt.label}</p>
-                    <p className="text-xs text-muted-foreground">{opt.sub}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </section>
-
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />{error}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 gap-1.5">
-              {submitting ? "Starting…" : <>Start Scan <ChevronRight className="h-4 w-4" /></>}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => router.push("/dashboard")}>Cancel</Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </main>
     </AppShell>
   );

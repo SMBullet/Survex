@@ -7,176 +7,261 @@ import { useAuth } from "@/lib/auth";
 import { api, ScanJob } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import { SeverityBadge } from "@/components/severity-badge";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, RefreshCw, ExternalLink, Activity, CheckCircle2, Clock, AlertTriangle, XCircle } from "lucide-react";
+import {
+  Plus, RefreshCw, ExternalLink, Activity, CheckCircle2,
+  Clock, AlertTriangle, XCircle, Loader2, ChevronRight,
+  Target, Shield,
+} from "lucide-react";
 
-const statusColor: Record<string, string> = {
-  queued:    "bg-zinc-500/20 text-zinc-400 border border-zinc-500/30",
-  running:   "bg-blue-500/20 text-blue-400 border border-blue-500/30",
-  done:      "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
-  failed:    "bg-red-500/20 text-red-400 border border-red-500/30",
-  cancelled: "bg-zinc-500/20 text-zinc-500 border border-zinc-500/20",
-};
-
-const statusIcon: Record<string, React.ReactNode> = {
-  queued:    <Clock className="h-3 w-3" />,
-  running:   <Activity className="h-3 w-3 animate-pulse" />,
-  done:      <CheckCircle2 className="h-3 w-3" />,
-  failed:    <XCircle className="h-3 w-3" />,
-  cancelled: <XCircle className="h-3 w-3" />,
-};
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
+  if (m < 1)  return "just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function StatCard({ label, value, sub, color = "text-foreground" }: {
-  label: string; value: string | number; sub?: string; color?: string;
+const STATUS_CFG: Record<string, { dot: string; badge: string; rowExtra: string; label: string }> = {
+  queued:    { dot: "bg-zinc-500",                badge: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",        rowExtra: "",                              label: "QUEUED"    },
+  running:   { dot: "bg-blue-400 animate-pulse",  badge: "bg-blue-500/15 text-blue-400 border-blue-500/25",        rowExtra: "border-l-[2px] border-l-blue-500/60",  label: "RUNNING"   },
+  done:      { dot: "bg-emerald-400",             badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25", rowExtra: "",                              label: "DONE"      },
+  failed:    { dot: "bg-red-400",                 badge: "bg-red-500/15 text-red-400 border-red-500/25",           rowExtra: "border-l-[2px] border-l-red-500/60",   label: "FAILED"    },
+  cancelled: { dot: "bg-zinc-600",               badge: "bg-zinc-700/20 text-zinc-500 border-zinc-700/25",        rowExtra: "",                              label: "CANCELLED" },
+};
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+
+function StatCard({
+  icon, label, value, sub, color,
+}: {
+  icon: React.ReactNode; label: string; value: number | string;
+  sub?: string; color?: "emerald" | "blue" | "red" | "amber";
 }) {
+  const map = {
+    emerald: { border: "border-emerald-500/20", icon: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400", val: "text-emerald-400" },
+    blue:    { border: "border-blue-500/20",    icon: "bg-blue-500/10 border-blue-500/25 text-blue-400",          val: "text-blue-400"    },
+    red:     { border: "border-red-500/20",     icon: "bg-red-500/10 border-red-500/25 text-red-400",             val: "text-red-400"     },
+    amber:   { border: "border-amber-500/20",   icon: "bg-amber-500/10 border-amber-500/25 text-amber-400",       val: "text-amber-400"   },
+  };
+  const theme = color ? map[color] : { border: "border-white/[0.07]", icon: "bg-white/5 border-white/[0.08] text-zinc-500", val: "text-white" };
+
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-1">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+    <div className={`rounded-xl border bg-[#0a1628]/70 p-5 transition-all ${theme.border}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${theme.icon}`}>
+          {icon}
+        </div>
+      </div>
+      <p className={`text-3xl font-bold tabular-nums ${theme.val}`}>{value}</p>
+      <p className="text-[11px] font-bold text-zinc-600 uppercase tracking-widest mt-1">{label}</p>
+      {sub && <p className="text-[11px] text-zinc-700 mt-0.5">{sub}</p>}
     </div>
   );
 }
 
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex flex-col items-center justify-center gap-6 py-24">
+      <div className="relative">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/8">
+          <Target className="h-7 w-7 text-emerald-400/50" />
+        </div>
+      </div>
+      <div className="text-center space-y-1.5">
+        <p className="font-semibold text-white">No operations yet</p>
+        <p className="text-sm text-zinc-500">Run your first scan to start mapping your attack surface.</p>
+      </div>
+      <Link
+        href="/scans/new"
+        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+      >
+        <Plus className="h-4 w-4" />
+        Start a Scan
+      </Link>
+    </div>
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [scans, setScans] = useState<ScanJob[]>([]);
+  const [scans, setScans]       = useState<ScanJob[]>([]);
   const [fetching, setFetching] = useState(true);
 
   const fetchScans = useCallback(async () => {
-    try {
-      const data = await api.scans.list();
-      setScans(data ?? []);
-    } catch { /* ignore */ }
+    try { setScans((await api.scans.list()) ?? []); }
+    catch { /* ignore */ }
     finally { setFetching(false); }
   }, []);
 
   useEffect(() => { if (!loading && !user) router.replace("/login"); }, [user, loading, router]);
   useEffect(() => { if (user) fetchScans(); }, [user, fetchScans]);
-
   useEffect(() => {
-    const hasActive = scans.some(s => s.status === "queued" || s.status === "running");
-    if (!hasActive) return;
+    if (!scans.some(s => s.status === "queued" || s.status === "running")) return;
     const t = setInterval(fetchScans, 4000);
     return () => clearInterval(t);
   }, [scans, fetchScans]);
 
   if (loading || !user) return null;
 
-  const total   = scans.length;
-  const active  = scans.filter(s => s.status === "running" || s.status === "queued").length;
-  const done    = scans.filter(s => s.status === "done").length;
+  const total          = scans.length;
+  const active         = scans.filter(s => s.status === "running" || s.status === "queued").length;
+  const done           = scans.filter(s => s.status === "done").length;
   const criticalOrHigh = scans.filter(s => s.max_severity === "critical" || s.max_severity === "high").length;
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Overview of your scan history</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={fetchScans} disabled={fetching}>
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${fetching ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white" asChild>
-              <Link href="/scans/new">
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
+      <main className="min-h-screen bg-[#030812] bg-dots">
+        <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-bold text-white tracking-tight">Operations Center</h1>
+                {active > 0 && (
+                  <div className="flex items-center gap-1.5 rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    <span className="text-[11px] font-bold text-blue-400 tracking-wider">{active} ACTIVE</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-zinc-500">
+                {total} operation{total !== 1 ? "s" : ""} total · {done} completed
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={fetchScans}
+                disabled={fetching}
+                className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] transition-all"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${fetching ? "animate-spin" : ""}`} />
+              </button>
+              <Link
+                href="/scans/new"
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
                 New Scan
               </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="Total Scans" value={total} />
-          <StatCard label="Active" value={active} color={active > 0 ? "text-blue-400" : "text-foreground"} sub={active > 0 ? "running or queued" : undefined} />
-          <StatCard label="Completed" value={done} color="text-emerald-400" />
-          <StatCard label="High Risk" value={criticalOrHigh} color={criticalOrHigh > 0 ? "text-red-400" : "text-foreground"} sub={criticalOrHigh > 0 ? "critical or high findings" : undefined} />
-        </div>
-
-        {/* Scan table */}
-        {fetching && scans.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card flex items-center justify-center h-40 text-muted-foreground text-sm">
-            Loading…
-          </div>
-        ) : scans.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card flex flex-col items-center justify-center gap-4 py-20">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <Activity className="h-6 w-6 text-muted-foreground" />
             </div>
-            <div className="text-center">
-              <p className="font-semibold">No scans yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Run your first scan to start discovering your attack surface.</p>
-            </div>
-            <Button className="bg-emerald-600 hover:bg-emerald-500 text-white" asChild>
-              <Link href="/scans/new"><Plus className="h-4 w-4 mr-1.5" />Start a Scan</Link>
-            </Button>
           </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    {["Client", "Targets", "Modules", "Status", "Findings", "Severity", "Started", ""].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scans.map((scan, i) => (
-                    <tr
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatCard icon={<Shield className="h-4 w-4" />}        label="Total Scans" value={total} />
+            <StatCard icon={<Activity className="h-4 w-4" />}      label="Active"      value={active}         sub={active > 0 ? "running or queued" : "all idle"}        color={active > 0 ? "blue" : undefined} />
+            <StatCard icon={<CheckCircle2 className="h-4 w-4" />}  label="Completed"   value={done}                                                                      color={done > 0 ? "emerald" : undefined} />
+            <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="High Risk"   value={criticalOrHigh} sub={criticalOrHigh > 0 ? "critical or high findings" : "no threats"} color={criticalOrHigh > 0 ? "red" : undefined} />
+          </div>
+
+          {/* Scan table */}
+          {fetching && scans.length === 0 ? (
+            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 flex items-center justify-center h-48">
+              <div className="flex items-center gap-3 text-zinc-500 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />Loading operations…
+              </div>
+            </div>
+          ) : scans.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="rounded-xl border border-white/[0.07] bg-[#0a1628]/70 overflow-hidden">
+
+              {/* Column headers */}
+              <div className="hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] gap-0 px-5 py-2.5 border-b border-white/[0.05] bg-white/[0.015]">
+                {["Client", "Target", "Modules", "Status", "Hits", "Severity", "When", ""].map(h => (
+                  <p key={h} className="text-[10px] font-bold uppercase tracking-widest text-zinc-700">{h}</p>
+                ))}
+              </div>
+
+              <div className="divide-y divide-white/[0.04]">
+                {scans.map(scan => {
+                  const cfg = STATUS_CFG[scan.status] ?? STATUS_CFG.done;
+                  return (
+                    <div
                       key={scan.id}
-                      className={`border-b border-border/50 cursor-pointer hover:bg-accent/30 transition-colors ${i === scans.length - 1 ? "border-b-0" : ""}`}
                       onClick={() => router.push(`/scans/detail?id=${scan.id}`)}
+                      className={`hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_110px_70px_90px_80px_40px] gap-0 px-5 py-4 cursor-pointer transition-colors hover:bg-white/[0.025] group ${cfg.rowExtra}`}
                     >
-                      <td className="px-4 py-3 font-medium">{scan.client}</td>
-                      <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate font-mono text-xs">{scan.targets}</td>
-                      <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate text-xs">{scan.modules}</td>
-                      <td className="px-4 py-3">
-                        <Badge className={`${statusColor[scan.status]} flex items-center gap-1 w-fit text-xs`}>
-                          {statusIcon[scan.status]}
-                          {scan.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 font-medium tabular-nums">{scan.finding_count ?? 0}</td>
-                      <td className="px-4 py-3"><SeverityBadge severity={scan.max_severity ?? ""} /></td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{timeAgo(scan.created_at)}</td>
-                      <td className="px-4 py-3">
-                        {scan.status === "done" && scan.report_path && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild onClick={e => e.stopPropagation()}>
-                            <a href={api.scans.reportUrl(scan.id)} target="_blank" rel="noreferrer" title="Open Report">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          </Button>
+                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                        <span className={`shrink-0 h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                        <span className="text-sm font-medium text-zinc-200 truncate group-hover:text-white transition-colors">{scan.client}</span>
+                      </div>
+                      <div className="flex items-center min-w-0 pr-2">
+                        <span className="text-[11px] font-mono text-zinc-500 truncate">{scan.targets}</span>
+                      </div>
+                      <div className="flex items-center min-w-0 pr-2">
+                        <span className="text-[11px] text-zinc-600 truncate">{scan.modules || "(profile)"}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[10px] font-bold tracking-wider ${cfg.badge}`}>
+                          {scan.status === "running" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`text-sm font-bold tabular-nums ${(scan.finding_count ?? 0) > 0 ? "text-white" : "text-zinc-700"}`}>
+                          {scan.finding_count ?? 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center"><SeverityBadge severity={scan.max_severity ?? ""} /></div>
+                      <div className="flex items-center">
+                        <span className="text-[11px] text-zinc-600 whitespace-nowrap">{timeAgo(scan.created_at)}</span>
+                      </div>
+                      <div className="flex items-center justify-end">
+                        {scan.status === "done" && scan.report_path ? (
+                          <a
+                            href={api.scans.reportUrl(scan.id)}
+                            target="_blank" rel="noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="flex h-7 w-7 items-center justify-center rounded border border-white/[0.07] text-zinc-600 hover:text-zinc-200 hover:border-white/20 hover:bg-white/5 transition-all"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Mobile card fallback */}
+                {scans.map(scan => {
+                  const cfg = STATUS_CFG[scan.status] ?? STATUS_CFG.done;
+                  return (
+                    <div
+                      key={`m-${scan.id}`}
+                      onClick={() => router.push(`/scans/detail?id=${scan.id}`)}
+                      className={`sm:hidden flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-white/[0.03] ${cfg.rowExtra}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`shrink-0 h-2 w-2 rounded-full ${cfg.dot}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-zinc-200 truncate">{scan.client}</p>
+                          <p className="text-[11px] text-zinc-600 font-mono truncate">{scan.targets}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <SeverityBadge severity={scan.max_severity ?? ""} />
+                        <ChevronRight className="h-3.5 w-3.5 text-zinc-700" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </AppShell>
   );
